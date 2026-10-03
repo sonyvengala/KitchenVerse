@@ -46,6 +46,14 @@ class AuthService:
         Register a new user.
         Returns (user, verification_token, email_status).
         """
+        # Security: Explicitly reject ADMIN role in public registration
+        if role == "ADMIN":
+            raise AuthServiceError("ADMIN role cannot be registered publicly", 403)
+        
+        # Validate role is allowed for public registration
+        if role not in ["CUSTOMER", "KITCHEN_OWNER"]:
+            raise AuthServiceError(f"Invalid role: {role}", 400)
+        
         # Check if email already exists
         result = await self.db.execute(select(User).where(User.email == email.lower()))
         existing_user = result.scalar_one_or_none()

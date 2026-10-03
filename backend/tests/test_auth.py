@@ -61,6 +61,15 @@ class TestRegistration:
         response = await client.post("/api/auth/register", json=user)
         assert response.status_code == 422
 
+    @pytest.mark.asyncio
+    async def test_register_admin_role_rejected(self, client: AsyncClient):
+        """Test that ADMIN role cannot be registered publicly."""
+        user = {**TEST_USER, "email": "admin@example.com", "role": "ADMIN"}
+        response = await client.post("/api/auth/register", json=user)
+        # Should be rejected with 403 Forbidden
+        assert response.status_code == 403
+        assert "ADMIN role cannot be registered publicly" in response.json()["detail"]
+
 
 # =============================================
 # PASSWORD VALIDATION TESTS
