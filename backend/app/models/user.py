@@ -5,9 +5,8 @@ from enum import Enum as PyEnum
 
 from sqlalchemy import (
     Column, String, Boolean, DateTime, Enum, Text, Integer, Float,
-    ForeignKey, UniqueConstraint, Index, JSON
+    ForeignKey, UniqueConstraint, Index, JSON, Uuid,
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.database.session import Base
@@ -83,7 +82,7 @@ class NotificationType(str, PyEnum):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
     first_name = Column(String(100), nullable=False)
@@ -116,8 +115,8 @@ class User(Base):
 class CustomerProfile(Base):
     __tablename__ = "customer_profiles"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     loyalty_points = Column(Integer, nullable=False, default=0)
     total_orders = Column(Integer, nullable=False, default=0)
     total_spent = Column(Float, nullable=False, default=0.0)
@@ -131,8 +130,8 @@ class CustomerProfile(Base):
 class KitchenProfile(Base):
     __tablename__ = "kitchen_profiles"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     kitchen_name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     cuisine_types = Column(JSON, nullable=True)
@@ -152,8 +151,8 @@ class KitchenProfile(Base):
 class Address(Base):
     __tablename__ = "addresses"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     address_type = Column(Enum(AddressType), nullable=False, default=AddressType.HOME)
     street = Column(String(255), nullable=False)
     city = Column(String(100), nullable=False)
@@ -176,8 +175,8 @@ class Address(Base):
 class MenuItem(Base):
     __tablename__ = "menu_items"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    kitchen_id = Column(UUID(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kitchen_id = Column(Uuid(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     price = Column(Float, nullable=False)
@@ -204,7 +203,7 @@ class MenuItem(Base):
 class Ingredient(Base):
     __tablename__ = "ingredients"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False, unique=True)
     unit = Column(String(50), nullable=False)
     category = Column(String(100), nullable=True)
@@ -215,9 +214,9 @@ class Ingredient(Base):
 class MenuItemIngredient(Base):
     __tablename__ = "menu_item_ingredients"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    menu_item_id = Column(UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="CASCADE"), nullable=False)
-    ingredient_id = Column(UUID(as_uuid=True), ForeignKey("ingredients.id", ondelete="CASCADE"), nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    menu_item_id = Column(Uuid(as_uuid=True), ForeignKey("menu_items.id", ondelete="CASCADE"), nullable=False)
+    ingredient_id = Column(Uuid(as_uuid=True), ForeignKey("ingredients.id", ondelete="CASCADE"), nullable=False)
     quantity_required = Column(Float, nullable=False)
 
     menu_item = relationship("MenuItem", back_populates="ingredients")
@@ -231,9 +230,9 @@ class MenuItemIngredient(Base):
 class Inventory(Base):
     __tablename__ = "inventory"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    kitchen_id = Column(UUID(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
-    ingredient_id = Column(UUID(as_uuid=True), ForeignKey("ingredients.id", ondelete="CASCADE"), nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kitchen_id = Column(Uuid(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
+    ingredient_id = Column(Uuid(as_uuid=True), ForeignKey("ingredients.id", ondelete="CASCADE"), nullable=False)
     quantity_on_hand = Column(Float, nullable=False, default=0.0)
     min_quantity = Column(Float, nullable=False, default=0.0)
     max_quantity = Column(Float, nullable=True)
@@ -254,13 +253,13 @@ class Inventory(Base):
 class InventoryTransaction(Base):
     __tablename__ = "inventory_transactions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    inventory_id = Column(UUID(as_uuid=True), ForeignKey("inventory.id", ondelete="CASCADE"), nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    inventory_id = Column(Uuid(as_uuid=True), ForeignKey("inventory.id", ondelete="CASCADE"), nullable=False)
     transaction_type = Column(Enum(InventoryTransactionType), nullable=False)
     quantity_change = Column(Float, nullable=False)
     reason = Column(String(255), nullable=True)
-    reference_id = Column(UUID(as_uuid=True), nullable=True)
-    performed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    reference_id = Column(Uuid(as_uuid=True), nullable=True)
+    performed_by = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     inventory = relationship("Inventory", back_populates="transactions")
@@ -273,9 +272,9 @@ class InventoryTransaction(Base):
 class Order(Base):
     __tablename__ = "orders"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    customer_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    kitchen_id = Column(UUID(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="SET NULL"), nullable=True)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    customer_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    kitchen_id = Column(Uuid(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="SET NULL"), nullable=True)
     status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
     subtotal = Column(Float, nullable=False, default=0.0)
     tax_amount = Column(Float, nullable=False, default=0.0)
@@ -303,9 +302,9 @@ class Order(Base):
 class OrderItem(Base):
     __tablename__ = "order_items"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
-    menu_item_id = Column(UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="SET NULL"), nullable=True)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id = Column(Uuid(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
+    menu_item_id = Column(Uuid(as_uuid=True), ForeignKey("menu_items.id", ondelete="SET NULL"), nullable=True)
     quantity = Column(Integer, nullable=False, default=1)
     unit_price = Column(Float, nullable=False)
     total_price = Column(Float, nullable=False)
@@ -319,8 +318,8 @@ class OrderItem(Base):
 class Payment(Base):
     __tablename__ = "payments"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), unique=True, nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id = Column(Uuid(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), unique=True, nullable=False)
     amount = Column(Float, nullable=False)
     status = Column(Enum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
     payment_method = Column(String(50), nullable=True)
@@ -339,10 +338,10 @@ class Payment(Base):
 class Review(Base):
     __tablename__ = "reviews"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="SET NULL"), nullable=True)
-    kitchen_id = Column(UUID(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    order_id = Column(Uuid(as_uuid=True), ForeignKey("orders.id", ondelete="SET NULL"), nullable=True)
+    kitchen_id = Column(Uuid(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
     rating = Column(Integer, nullable=False)
     comment = Column(Text, nullable=True)
     is_visible = Column(Boolean, nullable=False, default=True)
@@ -359,9 +358,9 @@ class Review(Base):
 class Favorite(Base):
     __tablename__ = "favorites"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    menu_item_id = Column(UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="CASCADE"), nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    menu_item_id = Column(Uuid(as_uuid=True), ForeignKey("menu_items.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="favorites")
@@ -378,8 +377,8 @@ class Favorite(Base):
 class Notification(Base):
     __tablename__ = "notifications"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     notification_type = Column(Enum(NotificationType), nullable=False)
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
@@ -397,8 +396,8 @@ class Notification(Base):
 class Promotion(Base):
     __tablename__ = "promotions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    kitchen_id = Column(UUID(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=True)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kitchen_id = Column(Uuid(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=True)
     code = Column(String(50), unique=True, nullable=False)
     promotion_type = Column(Enum(PromotionType), nullable=False)
     discount_value = Column(Float, nullable=False)
@@ -417,9 +416,9 @@ class Purchase(Base):
     """Ingredient purchases by kitchens (procurement)."""
     __tablename__ = "purchases"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    kitchen_id = Column(UUID(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
-    ingredient_id = Column(UUID(as_uuid=True), ForeignKey("ingredients.id", ondelete="SET NULL"), nullable=True)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kitchen_id = Column(Uuid(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
+    ingredient_id = Column(Uuid(as_uuid=True), ForeignKey("ingredients.id", ondelete="SET NULL"), nullable=True)
     supplier_name = Column(String(255), nullable=True)
     quantity = Column(Float, nullable=False)
     unit_cost = Column(Float, nullable=False)
@@ -431,9 +430,9 @@ class Purchase(Base):
 class WasteRecord(Base):
     __tablename__ = "waste_records"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    kitchen_id = Column(UUID(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
-    ingredient_id = Column(UUID(as_uuid=True), ForeignKey("ingredients.id", ondelete="SET NULL"), nullable=True)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kitchen_id = Column(Uuid(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
+    ingredient_id = Column(Uuid(as_uuid=True), ForeignKey("ingredients.id", ondelete="SET NULL"), nullable=True)
     quantity = Column(Float, nullable=False)
     reason = Column(String(255), nullable=True)
     cost = Column(Float, nullable=False, default=0.0)
@@ -444,9 +443,9 @@ class WasteRecord(Base):
 class DemandPrediction(Base):
     __tablename__ = "demand_predictions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    kitchen_id = Column(UUID(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
-    menu_item_id = Column(UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="SET NULL"), nullable=True)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kitchen_id = Column(Uuid(as_uuid=True), ForeignKey("kitchen_profiles.id", ondelete="CASCADE"), nullable=False)
+    menu_item_id = Column(Uuid(as_uuid=True), ForeignKey("menu_items.id", ondelete="SET NULL"), nullable=True)
     prediction_date = Column(DateTime(timezone=True), nullable=False)
     predicted_demand = Column(Float, nullable=False)
     confidence_score = Column(Float, nullable=True)
@@ -462,11 +461,11 @@ class DemandPrediction(Base):
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     action = Column(String(100), nullable=False)
     resource_type = Column(String(100), nullable=True)
-    resource_id = Column(UUID(as_uuid=True), nullable=True)
+    resource_id = Column(Uuid(as_uuid=True), nullable=True)
     details = Column(JSON, nullable=True)
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(String(500), nullable=True)

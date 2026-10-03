@@ -1,5 +1,4 @@
 """Test configuration and fixtures."""
-import asyncio
 import os
 from typing import AsyncGenerator
 
@@ -22,6 +21,7 @@ from app.main import app
 test_engine = create_async_engine(
     "sqlite+aiosqlite:///./test.db",
     echo=False,
+    connect_args={"check_same_thread": False},
 )
 
 test_session_factory = async_sessionmaker(
@@ -29,14 +29,6 @@ test_session_factory = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an event loop for the test session."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest_asyncio.fixture(autouse=True)
