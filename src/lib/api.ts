@@ -194,6 +194,18 @@ class ApiClient {
   }
 
   /**
+   * Make a PATCH request.
+   */
+  async patch<T = any>(path: string, body?: any, includeAuth: boolean = true): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${path}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(includeAuth),
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return this.handleResponse(response);
+  }
+
+  /**
    * Make a DELETE request.
    */
   async delete<T = any>(path: string, includeAuth: boolean = true): Promise<T> {
