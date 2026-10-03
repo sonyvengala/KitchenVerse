@@ -139,7 +139,7 @@ JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
 EMAIL_PROVIDER=console
 EMAIL_FROM=noreply@cloudkitchen.example.com
 FRONTEND_URL=http://localhost:3000
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+CORS_ORIGINS=http://localhost:3000
 APP_NAME=Unified Cloud Kitchen Platform
 APP_ENV=development
 DEBUG=true
@@ -246,12 +246,12 @@ npm run dev
 ```
   VITE v6.x.x  ready in xxx ms
 
-  ➜  Local:   http://localhost:5173/
+  ➜  Local:   http://localhost:3000/
   ➜  Network: use --host to expose
   ➜  press h + enter to show help
 ```
 
-**Open in browser:** http://localhost:5173
+**Open in browser:** http://localhost:3000
 
 ---
 
@@ -259,8 +259,8 @@ npm run dev
 
 ### 4.1 Test User Registration
 
-1. Open http://localhost:5173 in your browser
-2. Click "Create Account" or navigate to http://localhost:5173/register
+1. Open http://localhost:3000 in your browser
+2. Click "Create Account" or navigate to http://localhost:3000/register
 3. Fill in the registration form:
    - First Name: Test
    - Last Name: User
@@ -284,7 +284,7 @@ FROM users WHERE email = 'test@example.com';
 
 ### 4.2 Test Login
 
-1. Navigate to http://localhost:5173/login
+1. Navigate to http://localhost:3000/login
 2. Enter:
    - Email: test@example.com
    - Password: TestPass123!
@@ -300,11 +300,18 @@ FROM users WHERE email = 'test@example.com';
 
 ### 4.3 Test Protected Routes
 
-1. While logged in, navigate to http://localhost:5173/profile
+1. While logged in, navigate to http://localhost:3000/profile
 2. Should show your profile information
-3. Log out
-4. Try to access http://localhost:5173/profile again
-5. Should redirect to /login
+3. **Note:** Since email is not verified, you'll see a yellow warning banner at the top
+4. Log out
+5. Try to access http://localhost:3000/profile again
+6. Should redirect to /login
+
+**Authentication Flow Notes:**
+- Unverified users CAN log in and view their profile
+- The profile page shows a yellow warning banner for unverified users
+- In Phase 2, certain actions (placing orders, etc.) will require email verification
+- The backend `get_current_active_user` dependency enforces verification for protected actions
 
 ### 4.4 Test Password Validation
 
@@ -424,11 +431,11 @@ SENDGRID_API_KEY=SG.xxxxx
   ```
 
 **Error: "EADDRINUSE: address already in use"**
-- Port 5173 is in use. Kill the process or change port in `vite.config.js`
+- Port 3000 is in use. Kill the process or change port in `vite.config.js`
 
 **API calls fail with CORS error**
 - Backend not running: Start backend on port 8000
-- Check CORS_ORIGINS in backend `.env` includes `http://localhost:5173`
+- Check CORS_ORIGINS in backend `.env` includes `http://localhost:3000`
 
 ### Database issues
 
@@ -453,7 +460,7 @@ SENDGRID_API_KEY=SG.xxxxx
 
 | Service | URL |
 |---------|-----|
-| Frontend | http://localhost:5173 |
+| Frontend | http://localhost:3000 |
 | Backend API | http://localhost:8000 |
 | API Docs (Swagger) | http://localhost:8000/docs |
 | API Docs (ReDoc) | http://localhost:8000/redoc |

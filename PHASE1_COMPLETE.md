@@ -318,10 +318,16 @@ npm run dev
 ```
 
 **5. Verify:**
-- Open http://localhost:5173
+- Open http://localhost:3000
 - Register a user
 - Login
 - Access protected routes
+
+**Authentication Flow:**
+- Unverified users CAN log in and view their profile
+- Profile page shows a yellow warning banner for unverified users
+- In Phase 2, certain actions (placing orders, etc.) will require email verification
+- The backend `get_current_active_user` dependency enforces verification for protected actions
 
 ---
 

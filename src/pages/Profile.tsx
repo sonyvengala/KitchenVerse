@@ -90,6 +90,23 @@ export default function Profile() {
 
       {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-8">
+        {/* Email verification warning */}
+        {user && !user.is_email_verified && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">Email not verified</h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Please check your email for a verification link. Some features may be limited until your email is verified.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Profile Card */}
           <div className="lg:col-span-2">

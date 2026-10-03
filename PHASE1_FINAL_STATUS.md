@@ -260,7 +260,7 @@ All pages implemented and verified:
 ### CORS Configuration: PASS
 - Configured in FastAPI middleware
 - Origins from environment variable (CORS_ORIGINS)
-- Default: http://localhost:3000, http://localhost:5173
+- Default: http://localhost:3000
 - Credentials allowed
 - All methods and headers allowed
 
