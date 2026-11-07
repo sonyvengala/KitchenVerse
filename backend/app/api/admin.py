@@ -7,15 +7,16 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
-from app.database.session import get_db
-from app.api.deps import require_admin
-from app.models.user import (
+from backend.app.database.session import get_db
+from backend.app.api.deps import require_admin
+from backend.app.models.user import (
     User, UserRole, UserStatus, CustomerProfile, KitchenProfile,
     MenuItem, Order, OrderStatus, Payment, PaymentStatus,
     Inventory, Ingredient, Review, Promotion, WasteRecord,
     DemandPrediction, AuditLog
 )
-from app.schemas.admin import (
+from backend.app.models.order import OrderItem
+from backend.app.schemas.admin import (
     DashboardStats, UserListResponse, UserDetailResponse,
     KitchenListResponse, OrderListResponse, PaymentListResponse,
     InventoryListResponse, ReviewListResponse, PromotionListResponse,
@@ -37,8 +38,10 @@ async def get_dashboard_stats(
 ):
     """Get dashboard statistics - ADMIN only."""
     
-    # User counts
-    total_users = await db.execute(select(func.count(User.id)))
+    # User counts (excluding ADMIN accounts from total_users)
+    total_users = await db.execute(
+        select(func.count(User.id)).where(User.role.in_([UserRole.CUSTOMER, UserRole.KITCHEN_OWNER]))
+    )
     total_users_count = total_users.scalar() or 0
     
     customers = await db.execute(

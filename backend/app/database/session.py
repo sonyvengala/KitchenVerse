@@ -2,15 +2,24 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 
-from app.core.config import settings
+from typing import AsyncGenerator
+from backend.app.core.config import settings
 
-# Create async engine
+engine_kwargs = {
+    "echo": settings.DEBUG,
+}
+if not str(settings.DATABASE_URL).startswith("sqlite"):
+    engine_kwargs.update({
+        "pool_pre_ping": True,
+        "pool_size": 10,
+        "max_overflow": 20,
+    })
+else:
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    **engine_kwargs
 )
 
 # Create async session factory
@@ -26,7 +35,7 @@ class Base(DeclarativeBase):
     pass
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency that provides a database session."""
     async with async_session_factory() as session:
         try:

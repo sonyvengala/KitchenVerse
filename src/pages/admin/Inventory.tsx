@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { adminApi, InventoryItem } from '../../services/adminApi';
 import { DataTable, Badge, Pagination, FilterSelect, PageHeader, Card, LoadingState, ErrorState } from '../../components/admin/AdminComponents';
+import { formatINR } from '../../utils/currency';
 
 export default function AdminInventory() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -41,36 +42,49 @@ export default function AdminInventory() {
     {
       key: 'ingredient',
       header: 'Ingredient',
-      render: (item: InventoryItem) => item.ingredient ? (
-        <div>
-          <div className="font-medium">{item.ingredient.name}</div>
-          <div className="text-xs text-gray-500">{item.ingredient.unit}</div>
-        </div>
-      ) : 'N/A',
+      render: (item: any) => {
+        const name = item.ingredient?.name || item.ingredient_name || 'Unknown Ingredient';
+        const unit = item.ingredient?.unit || item.unit || '';
+        return (
+          <div>
+            <div className="font-medium text-gray-900">{name}</div>
+            {unit && <div className="text-xs text-gray-500">{unit}</div>}
+          </div>
+        );
+      },
     },
     {
       key: 'kitchen',
       header: 'Kitchen',
-      render: (item: InventoryItem) => item.kitchen?.kitchen_name || 'N/A',
+      render: (item: any) => item.kitchen?.kitchen_name || item.kitchen_name || 'N/A',
     },
     {
       key: 'quantity_on_hand',
       header: 'Quantity',
-      render: (item: InventoryItem) => item.quantity_on_hand.toFixed(2),
+      render: (item: any) => {
+        const qty = item.quantity_on_hand ?? item.quantity ?? 0;
+        const unit = item.ingredient?.unit || item.unit || '';
+        return `${Number(qty).toFixed(2)} ${unit}`.trim();
+      },
     },
     {
       key: 'min_quantity',
       header: 'Min Stock',
-      render: (item: InventoryItem) => item.min_quantity.toFixed(2),
+      render: (item: any) => {
+        const minQ = item.min_quantity ?? 0;
+        return Number(minQ).toFixed(2);
+      },
     },
     {
       key: 'status',
       header: 'Status',
-      render: (item: InventoryItem) => {
-        const isLow = item.quantity_on_hand <= item.min_quantity;
+      render: (item: any) => {
+        const qty = item.quantity_on_hand ?? item.quantity ?? 0;
+        const minQ = item.min_quantity ?? 0;
+        const isLow = item.status === 'LOW_STOCK' || (minQ > 0 && qty <= minQ);
         return (
           <Badge variant={isLow ? 'danger' : 'success'}>
-            {isLow ? 'Low Stock' : 'Normal'}
+            {isLow ? 'Low Stock' : 'Available'}
           </Badge>
         );
       },
@@ -78,7 +92,32 @@ export default function AdminInventory() {
     {
       key: 'unit_cost',
       header: 'Unit Cost',
-      render: (item: InventoryItem) => `$${item.unit_cost.toFixed(2)}`,
+      render: (item: any) => {
+        const hasCost = item.cost_available && item.unit_cost !== null && item.unit_cost !== undefined;
+        const unit = item.ingredient?.unit || item.unit || '';
+        return hasCost ? (
+          <span className="font-semibold text-gray-900">
+            {formatINR(item.unit_cost)}
+            {unit && <span className="text-xs text-gray-500 font-normal"> / {unit}</span>}
+          </span>
+        ) : (
+          <span className="text-gray-400 text-xs italic font-normal">Cost not set</span>
+        );
+      },
+    },
+    {
+      key: 'stock_value',
+      header: 'Stock Value',
+      render: (item: any) => {
+        const hasValue = item.cost_available && item.stock_value !== null && item.stock_value !== undefined;
+        return hasValue ? (
+          <span className="font-bold text-emerald-800">
+            {formatINR(item.stock_value)}
+          </span>
+        ) : (
+          <span className="text-gray-400 text-xs italic font-normal">Cost not set</span>
+        );
+      },
     },
   ];
 
@@ -100,7 +139,7 @@ export default function AdminInventory() {
             placeholder="All Stock Levels"
           />
         </div>
-        <DataTable columns={columns} data={inventory} keyExtractor={(i) => i.id} emptyMessage="No inventory items found" />
+        <DataTable columns={columns} data={inventory} keyExtractor={(i) => i.id} emptyMessage="No inventory records yet." />
         <Pagination total={total} skip={skip} limit={limit} onPageChange={setSkip} />
       </Card>
     </div>

@@ -4,7 +4,56 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { getValidDestinationForRole } from '../utils/roleUtils';
 import AuthLayout from '../layouts/AuthLayout';
+
+/** Map API error messages / HTTP status codes to user-friendly text. */
+function getLoginErrorMessage(err: any): string {
+  const status: number = err?.status ?? 0;
+  const detail: string = (err?.detail || err?.message || '').toLowerCase();
+
+  // Network / backend offline
+  if (status === 0 || status === 502 || status === 503 || status === 504) {
+    return 'Cannot connect to server. Please ensure the backend is running and try again.';
+  }
+  if (status >= 500) {
+    return 'Server error. Please try again in a moment.';
+  }
+
+  // 401 - bad credentials
+  if (status === 401) {
+    return 'Invalid email or password. Please check your credentials and try again.';
+  }
+
+  // 403 - account state issues
+  if (status === 403) {
+    if (detail.includes('deactivated') || detail.includes('inactive')) {
+      return 'Your account has been deactivated. Please contact support.';
+    }
+    if (detail.includes('suspended')) {
+      return 'Your account has been suspended. Please contact support.';
+    }
+    if (detail.includes('pending') || detail.includes('approval')) {
+      return 'Your account is pending admin approval. You will be notified once reviewed.';
+    }
+    if (detail.includes('verif') || detail.includes('email')) {
+      return 'Please verify your email address before logging in. Check your inbox for the verification link.';
+    }
+    return err?.detail || 'Access denied. Please contact support.';
+  }
+
+  // 422 - validation error (e.g. bad email format)
+  if (status === 422) {
+    return 'Please enter a valid email address and password.';
+  }
+
+  // Return server-provided message as a fallback (it's already safe from our backend)
+  if (err?.detail && typeof err.detail === 'string' && err.detail.length < 200) {
+    return err.detail;
+  }
+
+  return 'Login failed. Please try again.';
+}
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -15,8 +64,6 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as any)?.from?.pathname || '/profile';
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -24,10 +71,12 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      navigate(from, { replace: true });
+      const loggedUser = await login(email, password);
+      const targetFrom = (location.state as any)?.from?.pathname;
+      const destination = getValidDestinationForRole(targetFrom, loggedUser.role);
+      navigate(destination, { replace: true });
     } catch (err: any) {
-      setError(err.detail || 'Invalid email or password');
+      setError(getLoginErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

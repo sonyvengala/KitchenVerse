@@ -1,4 +1,4 @@
-# Local Deployment Guide - Unified Cloud Kitchen Platform
+# Local Deployment Guide - KitchenVerse
 
 This guide provides exact steps to deploy and run the platform locally.
 
@@ -140,7 +140,7 @@ EMAIL_PROVIDER=console
 EMAIL_FROM=noreply@cloudkitchen.example.com
 FRONTEND_URL=http://localhost:3000
 CORS_ORIGINS=http://localhost:3000
-APP_NAME=Unified Cloud Kitchen Platform
+APP_NAME=KitchenVerse
 APP_ENV=development
 DEBUG=true
 ```
@@ -191,7 +191,7 @@ INFO:     Application startup complete.
 **Verify backend is running:**
 ```bash
 curl http://localhost:8000/health
-# Should return: {"status":"healthy","app":"Unified Cloud Kitchen Platform","environment":"development"}
+# Should return: {"status":"healthy","app":"KitchenVerse","environment":"development"}
 ```
 
 **API Documentation:**

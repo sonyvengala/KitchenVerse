@@ -3,20 +3,70 @@
  * Provides sidebar navigation and layout for admin pages
  */
 
-import { useState } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { normalizeRole, getRoleDashboardPath } from '../../utils/roleUtils';
+import { adminApi } from '../../services/adminApi';
+
+import { useRealtime } from '../../context/RealtimeContext';
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { subscribe } = useRealtime();
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await adminApi.getUnreadNotificationCount();
+      if (typeof res?.unread_count === 'number') {
+        setUnreadCount(res.unread_count);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated || isLoading) return;
+    fetchUnreadCount();
+
+    const unsub = subscribe('NOTIFICATION_NEW', () => {
+      fetchUnreadCount();
+    });
+
+    const interval = setInterval(fetchUnreadCount, 60000);
+    return () => {
+      unsub();
+      clearInterval(interval);
+    };
+  }, [isAuthenticated, isLoading, subscribe]);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500"></div>
+          <span className="text-sm font-semibold text-gray-300">Loading KitchenVerse Admin...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated && user) {
+    const role = normalizeRole(user.role);
+    if (role !== 'ADMIN') {
+      return <Navigate to={getRoleDashboardPath(role)} replace />;
+    }
+  }
 
   const navigation = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
@@ -30,9 +80,11 @@ export default function AdminLayout() {
     { name: 'Promotions', href: '/admin/promotions', icon: '🎁' },
     { name: 'Reviews', href: '/admin/reviews', icon: '⭐' },
     { name: 'Waste Management', href: '/admin/waste', icon: '🗑️' },
-    { name: 'Demand Predictions', href: '/admin/demand-predictions', icon: '📈' },
+    { name: 'Demand Predictions', href: '/admin/demand-predictions', icon: '🔮' },
     { name: 'Analytics', href: '/admin/analytics', icon: '📉' },
     { name: 'Audit Logs', href: '/admin/audit-logs', icon: '📝' },
+    { name: 'Notifications', href: '/admin/notifications', icon: '🔔', badge: unreadCount },
+    { name: 'Settings', href: '/admin/settings', icon: '⚙️' },
     { name: 'Profile', href: '/admin/profile', icon: '👤' },
   ];
 
@@ -59,8 +111,9 @@ export default function AdminLayout() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 bg-gray-800">
-            <Link to="/admin/dashboard" className="flex items-center">
-              <span className="text-2xl font-bold text-white">Cloud Kitchen</span>
+            <Link to="/admin/dashboard" className="flex flex-col">
+              <span className="text-xl font-black text-white leading-tight">KitchenVerse</span>
+              <span className="text-[10px] text-gray-400 font-medium tracking-tight">Multiple Kitchens. One Destination.</span>
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -79,14 +132,21 @@ export default function AdminLayout() {
                 key={item.name}
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                className={`flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                   isActive(item.href)
                     ? 'bg-orange-600 text-white'
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                 }`}
               >
-                <span className="mr-3 text-lg">{item.icon}</span>
-                {item.name}
+                <div className="flex items-center min-w-0">
+                  <span className="mr-3 text-lg">{item.icon}</span>
+                  <span className="truncate">{item.name}</span>
+                </div>
+                {Boolean(item.badge && item.badge > 0) && (
+                  <span className="ml-2 px-2 py-0.5 text-xs font-black rounded-full bg-orange-500 text-white shadow-xs">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             ))}
           </nav>
@@ -122,18 +182,35 @@ export default function AdminLayout() {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-30 bg-white shadow-sm">
+        <div className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-100">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-gray-500 hover:text-gray-700"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <div className="flex-1 ml-4 lg:ml-0">
-              <h1 className="text-xl font-semibold text-gray-900">Admin Portal</h1>
+            <div className="flex items-center">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden text-gray-500 hover:text-gray-700 mr-3"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <h1 className="text-xl font-bold text-gray-900">KitchenVerse Admin Portal</h1>
+            </div>
+
+            {/* Notification Bell in Header */}
+            <div className="flex items-center space-x-3">
+              <Link
+                to="/admin/notifications"
+                className="relative p-2 rounded-xl text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors flex items-center justify-center"
+                title="Notifications"
+                aria-label="Admin Notifications"
+              >
+                <span className="text-xl">🔔</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-5 h-5 px-1.5 text-[11px] font-black text-white bg-orange-600 rounded-full border-2 border-white shadow-xs">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </Link>
             </div>
           </div>
         </div>

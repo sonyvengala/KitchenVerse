@@ -1,1 +1,1 @@
-# Unified Cloud Kitchen Platform - Backend
+# KitchenVerse - Backend

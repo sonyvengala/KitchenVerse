@@ -1,0 +1,224 @@
+{
+  "dataset_metadata": {
+    "dataset_name": "Official Meal Delivery Demand Benchmark Dataset",
+    "source_files": [
+      "train.csv",
+      "meal_info.csv",
+      "fulfilment_center_info.csv"
+    ],
+    "total_records": 456548,
+    "train_records": 361348,
+    "test_records": 95200,
+    "total_weeks": 145,
+    "train_weeks": "1-116",
+    "test_weeks": "117-145",
+    "unique_centers": 77,
+    "unique_meals": 51,
+    "target_variable": "num_orders",
+    "is_customer_data": false,
+    "data_distinction_note": "OFFICIAL REFERENCE DATASET ONLY: These benchmarks reflect the 456,548-record historical meal delivery fulfillment dataset. They DO NOT represent KitchenVerse real customer order history or live kitchen profiles."
+  },
+  "validation_protocol": {
+    "strategy": "Strict Chronological Split (No Shuffling, No Future Leakage)",
+    "leakage_prevention": [
+      "Strict time-based split: weeks 1-116 strictly precede test weeks 117-145",
+      "Label encoders and standard scalers fit exclusively on training data (weeks 1-116)",
+      "Unseen test categories mapped safely to default class",
+      "Time-series baseline computes predictions strictly using history prior to each forecasted week",
+      "No target encoding or future target aggregation applied across time boundary"
+    ],
+    "metrics_defined": {
+      "mae": "Mean Absolute Error \u2014 average raw order forecast deviation (lower is better)",
+      "rmse": "Root Mean Squared Error \u2014 penalizes large order variance spikes (lower is better)",
+      "r2": "Coefficient of Determination \u2014 variance of demand explained (higher is better)",
+      "mape_pct": "Safe Mean Absolute Percentage Error \u2014 relative error with zero/near-zero clipping (lower is better)"
+    }
+  },
+  "models": {
+    "XGBoost Regressor": {
+      "algorithm": "XGBoost Regressor",
+      "family": "Gradient Boosted Decision Trees",
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "learning_rate": 0.08,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "random_state": 42,
+        "n_jobs": -1,
+        "tree_method": "hist"
+      },
+      "metrics": {
+        "mae": 94.671,
+        "rmse": 191.101,
+        "r2": 0.7262,
+        "mape_pct": 80.9,
+        "training_time_sec": 6.11
+      },
+      "top_features": {
+        "is_promoted": 0.1891203671693802,
+        "promotion_intensity": 0.10812842100858688,
+        "category_enc": 0.09780654311180115,
+        "log_checkout_price": 0.07650810480117798,
+        "checkout_price": 0.06292649358510971,
+        "op_area": 0.0540994368493557,
+        "cuisine_enc": 0.04938163235783577,
+        "log_base_price": 0.047569986432790756,
+        "meal_id": 0.041252728551626205,
+        "base_price": 0.04002249240875244
+      },
+      "description": "Histogram-optimized gradient boosted ensemble with subsampling and feature fractioning."
+    },
+    "Random Forest Regressor": {
+      "algorithm": "Random Forest Regressor",
+      "family": "Bagged Decision Trees",
+      "hyperparameters": {
+        "n_estimators": 100,
+        "max_depth": 16,
+        "min_samples_leaf": 10,
+        "max_features": 0.8,
+        "random_state": 42,
+        "n_jobs": -1
+      },
+      "metrics": {
+        "mae": 90.009,
+        "rmse": 191.098,
+        "r2": 0.7262,
+        "mape_pct": 68.9,
+        "training_time_sec": 34.58
+      },
+      "top_features": {
+        "category_enc": 0.14489269003686245,
+        "op_area": 0.10588375277384203,
+        "checkout_price": 0.07382882296748064,
+        "log_checkout_price": 0.07321350853957129,
+        "promotion_intensity": 0.07145713021600478,
+        "meal_id": 0.07001472985864757,
+        "base_price": 0.06647040684060508,
+        "log_base_price": 0.05629753302305453,
+        "is_promoted": 0.05438609864180555,
+        "cuisine_enc": 0.05377718694412292
+      },
+      "description": "Bootstrap aggregated ensemble of 100 deep regression trees with leaf regularization."
+    },
+    "Linear Regression": {
+      "algorithm": "Linear Regression (Ridge Regularized Pipeline)",
+      "family": "Generalized Linear Models",
+      "hyperparameters": {
+        "alpha": 10.0,
+        "scaler": "StandardScaler",
+        "categorical_encoding": "OneHotEncoder"
+      },
+      "metrics": {
+        "mae": 147.906,
+        "rmse": 272.858,
+        "r2": 0.4418,
+        "mape_pct": 118.1,
+        "training_time_sec": 0.57
+      },
+      "description": "L2-regularized linear model with strictly train-fitted standard scaling and one-hot encoding."
+    },
+    "Time-Series Baseline": {
+      "algorithm": "Time-Series Baseline (Rolling 4-Week Window)",
+      "family": "Sequential Time-Series",
+      "hyperparameters": {
+        "window_size": 4,
+        "strategy": "Rolling moving average per (center_id, meal_id) series with sequential history update",
+        "fallback": "Expanding historical pair mean -> Center mean -> Global training mean"
+      },
+      "metrics": {
+        "mae": 104.287,
+        "rmse": 266.023,
+        "r2": 0.4694,
+        "mape_pct": 70.37,
+        "training_time_sec": 18.91
+      },
+      "description": "Chronological rolling moving average per fulfillment-meal series strictly using prior historical weeks without future leakage."
+    },
+    "Gradient Boosting (Reference)": {
+      "algorithm": "Gradient Boosting Regressor (Reference)",
+      "family": "Gradient Boosted Decision Trees",
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "learning_rate": 0.08,
+        "subsample": 0.8,
+        "loss": "huber",
+        "min_samples_leaf": 20
+      },
+      "metrics": {
+        "mae": 90.398,
+        "rmse": 197.592,
+        "r2": 0.7073,
+        "mape_pct": 65.37,
+        "training_time_sec": 45.2
+      },
+      "top_features": {
+        "category_enc": 0.20696575800680686,
+        "checkout_price": 0.10635195789015713,
+        "log_checkout_price": 0.09920940981830001,
+        "meal_id": 0.08754693645482724,
+        "op_area": 0.08649710280488532,
+        "cuisine_enc": 0.07589301222318208,
+        "log_base_price": 0.06467658553636114,
+        "promotion_intensity": 0.04771009049408057,
+        "base_price": 0.03685148098456192,
+        "center_id": 0.03485412283342656
+      },
+      "description": "Original KitchenVerse production reference model trained with robust Huber loss on order demand."
+    }
+  },
+  "ranking": [
+    {
+      "algorithm": "Random Forest Regressor",
+      "mae": 90.009,
+      "rmse": 191.098,
+      "r2": 0.7262,
+      "mape_pct": 68.9,
+      "training_time_sec": 34.58
+    },
+    {
+      "algorithm": "Gradient Boosting (Reference)",
+      "mae": 90.398,
+      "rmse": 197.592,
+      "r2": 0.7073,
+      "mape_pct": 65.37,
+      "training_time_sec": 45.2
+    },
+    {
+      "algorithm": "XGBoost Regressor",
+      "mae": 94.671,
+      "rmse": 191.101,
+      "r2": 0.7262,
+      "mape_pct": 80.9,
+      "training_time_sec": 6.11
+    },
+    {
+      "algorithm": "Time-Series Baseline",
+      "mae": 104.287,
+      "rmse": 266.023,
+      "r2": 0.4694,
+      "mape_pct": 70.37,
+      "training_time_sec": 18.91
+    },
+    {
+      "algorithm": "Linear Regression",
+      "mae": 147.906,
+      "rmse": 272.858,
+      "r2": 0.4418,
+      "mape_pct": 118.1,
+      "training_time_sec": 0.57
+    }
+  ],
+  "best_model": {
+    "algorithm": "Random Forest Regressor",
+    "selection_rationale": "Random Forest Regressor achieved the best balanced performance across all evaluated metrics: MAE of 90.009, RMSE of 191.098, R\u00b2 of 0.7262, and MAPE of 68.90%."
+  },
+  "limitations": [
+    "Reference dataset covers fulfillment centers and aggregated weekly orders, not sub-hourly kitchen rush windows.",
+    "Historical promotions and prices in the reference dataset do not model individual dynamic kitchen pricing in real-time.",
+    "Linear models struggle with complex non-linear promotional and meal-center interaction effects.",
+    "Time-series baseline without exogenous promotional features lags behind gradient-boosted trees during sudden marketing campaigns."
+  ],
+  "generated_at": "2026-10-14T09:09:30.990955"
+}

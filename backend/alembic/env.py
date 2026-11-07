@@ -6,24 +6,29 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-# Add backend to path so we can import app modules
+# Add project root and backend to path so we can import backend.app modules
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.database.session import Base
-from app.models.user import (
-    User, CustomerProfile, KitchenProfile, Address,
-    MenuItem, Ingredient, MenuItemIngredient, Inventory, InventoryTransaction,
-    Order, OrderItem, Payment,
-    Review, Favorite,
-    Notification, Promotion, Purchase, WasteRecord, DemandPrediction, AuditLog,
-)
-from app.core.config import settings
+from backend.app.core.database import Base
+import backend.app.models
+from backend.app.core.config import settings
 
 # Alembic Config object
 config = context.config
 
-# Override sqlalchemy.url from environment
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC)
+# Override sqlalchemy.url from environment or settings
+sync_url = getattr(settings, "DATABASE_URL_SYNC", None) or os.getenv("DATABASE_URL_SYNC")
+if not sync_url:
+    raw_url = os.getenv("DATABASE_URL") or str(settings.DATABASE_URL)
+    sync_url = str(raw_url).replace("+asyncpg", "").replace("+psycopg", "")
+
+if "localhost:5433" in sync_url or "user:password" in sync_url or "postgres:postgres" in sync_url:
+    sync_url = "postgresql://cloud_kitchen_user:Roso%400404@localhost:5432/cloud_kitchen"
+
+# ConfigParser requires escaping '%' as '%%' for interpolation
+escaped_url = sync_url.replace("%%", "%").replace("%", "%%")
+config.set_main_option("sqlalchemy.url", escaped_url)
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

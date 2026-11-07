@@ -14,8 +14,8 @@ os.environ["JWT_SECRET"] = "test-secret-key-for-testing-only"
 os.environ["EMAIL_PROVIDER"] = "console"
 os.environ["APP_ENV"] = "testing"
 
-from app.database.session import Base, get_db
-from app.main import app
+from backend.app.database.session import Base, get_db
+from backend.app.main import app
 
 # Test database engine
 test_engine = create_async_engine(

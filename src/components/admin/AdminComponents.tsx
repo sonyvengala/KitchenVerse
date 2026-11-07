@@ -100,7 +100,7 @@ export function ErrorState({ message = 'Failed to load data', onRetry }: ErrorSt
 
 interface Column<T> {
   key: string;
-  header: string;
+  header: ReactNode;
   render?: (item: T) => ReactNode;
   className?: string;
 }
@@ -125,7 +125,7 @@ export function DataTable<T>({ columns, data, keyExtractor, emptyMessage = 'No d
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${col.className || ''}`}
+                className={`px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider ${col.className || ''}`}
               >
                 {col.header}
               </th>
@@ -134,9 +134,9 @@ export function DataTable<T>({ columns, data, keyExtractor, emptyMessage = 'No d
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {data.map((item) => (
-            <tr key={keyExtractor(item)} className="hover:bg-gray-50">
+            <tr key={keyExtractor(item)} className="hover:bg-gray-50/80 transition-colors">
               {columns.map((col) => (
-                <td key={col.key} className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${col.className || ''}`}>
+                <td key={col.key} className={`px-4 sm:px-6 py-3 text-sm text-gray-900 ${col.className || ''}`}>
                   {col.render ? col.render(item) : (item as any)[col.key]}
                 </td>
               ))}

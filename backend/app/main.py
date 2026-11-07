@@ -1,57 +1,68 @@
-"""Main FastAPI application entry point."""
-import logging
+"""
+FastAPI Main Application Entrypoint.
+KitchenVerse Backend.
+"""
 from contextlib import asynccontextmanager
-
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-
-from app.core.config import settings
-from app.database.session import init_db, close_db
-from app.api.auth import router as auth_router
-from app.api.admin import router as admin_router
-
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG if settings.DEBUG else logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+from backend.app.core.config import settings
+from backend.app.api.api_v1 import api_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events."""
-    logger.info(f"Starting {settings.APP_NAME}...")
-    logger.info(f"Environment: {settings.APP_ENV}")
-    logger.info(f"Email provider: {settings.EMAIL_PROVIDER}")
+    # Register running asyncio event loop for thread-safe WebSocket broadcasts
+    import asyncio
+    from backend.app.websockets.connection_manager import ws_manager
+    ws_manager.set_event_loop(asyncio.get_running_loop())
 
-    # In development, auto-create tables if database is available
-    if settings.APP_ENV == "development":
-        try:
-            await init_db()
-            logger.info("Database tables initialized (development mode)")
-        except Exception as e:
-            logger.warning(f"Could not initialize database: {e}")
-            logger.warning("Database features will not be available until database is configured")
+    # Startup operations: ensure database schema is initialized
+    from backend.app.core.database import Base, engine, SessionLocal, ensure_schema_compatibility
+    import backend.app.models
+    Base.metadata.create_all(bind=engine)
+    ensure_schema_compatibility(engine)
+
+    # Idempotent Admin Account Bootstrap
+    from backend.app.models.user import User
+    from backend.app.models.enums import UserRole
+    from backend.app.core.security import get_password_hash
+    import uuid
+
+    db = SessionLocal()
+    try:
+        admin = db.query(User).filter(User.role == UserRole.ADMIN).first()
+        if not admin:
+            admin_user = User(
+                id=str(uuid.uuid4()),
+                email="admin@cloudkitchen.com",
+                hashed_password=get_password_hash("AdminPass123!"),
+                full_name="Super Administrator",
+                phone_number="+919999999999",
+                role=UserRole.ADMIN,
+                is_active=True,
+                is_verified=True,
+            )
+            db.add(admin_user)
+            db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
 
     yield
-
-    await close_db()
-    logger.info("Application shutdown complete")
+    # Shutdown cleanup
 
 
-# Create FastAPI application
 app = FastAPI(
     title=settings.APP_NAME,
-    description="Unified Cloud Kitchen Platform API",
-    version="0.1.0",
+    description="Multi-tenant Cloud Kitchen management and customer ordering platform with real-time operations and ML demand forecasting.",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
     lifespan=lifespan,
-    docs_url="/docs" if settings.DEBUG else None,
-    redoc_url="/redoc" if settings.DEBUG else None,
 )
 
-# CORS middleware
+# CORS Middleware (credentials=True required for secure HttpOnly cookie session auth)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -61,39 +72,62 @@ app.add_middleware(
 )
 
 
-# Global exception handler
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """Handle unexpected errors safely without exposing internals."""
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "An internal server error occurred"},
-    )
+@app.middleware("http")
+async def browser_admin_redirect_middleware(request, call_next):
+    """
+    If a web browser directly requests an /admin UI page on the backend port
+    (e.g. http://localhost:8000/admin/notifications with Accept: text/html),
+    redirect the browser to the Frontend Admin Portal (http://localhost:3000/admin/notifications).
+    API calls (Accept: application/json, fetch, or XHR) continue directly to the backend.
+    """
+    path = request.url.path
+    if path == "/admin" or path.startswith("/admin/"):
+        accept = request.headers.get("accept", "")
+        if "text/html" in accept and "application/json" not in accept:
+            from fastapi.responses import RedirectResponse
+            frontend_url = settings.FRONTEND_URL.rstrip("/")
+            target_url = f"{frontend_url}{path}"
+            if request.url.query:
+                target_url += f"?{request.url.query}"
+            return RedirectResponse(url=target_url, status_code=307)
+
+    return await call_next(request)
+
+# Mount API routers (both /api/v1 and /api for compatibility)
+app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router, prefix="/api")
+
+# Static files for uploaded/generated images
+import os
+from fastapi.staticfiles import StaticFiles
+uploads_dir = os.path.join(os.getcwd(), "data", "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+
+from backend.app.api.routes.admin import router as admin_router
+app.include_router(admin_router)
+
+from backend.app.api.routes.websockets import router as ws_router
+app.include_router(ws_router)
 
 
-# Include routers
-app.include_router(auth_router, prefix="/api")
-app.include_router(admin_router, prefix="/api")
-
-
-# Health check endpoint
-@app.get("/health", tags=["Health"])
-async def health_check():
-    """Application health check."""
+@app.get("/")
+def read_root():
     return {
-        "status": "healthy",
-        "app": settings.APP_NAME,
-        "environment": settings.APP_ENV,
-    }
-
-
-# Root endpoint
-@app.get("/", tags=["Root"])
-async def root():
-    """API root."""
-    return {
+        "platform": settings.APP_NAME,
         "message": f"Welcome to {settings.APP_NAME} API",
-        "version": "0.1.0",
-        "docs": "/docs" if settings.DEBUG else "Documentation disabled in production",
+        "environment": settings.APP_ENV,
+        "api_docs": "/docs",
+        "api_v1": "/api/v1"
     }
+
+
+from backend.app.api.routes.health import check_health
+from backend.app.core.database import get_db
+from sqlalchemy.orm import Session
+from fastapi import Depends
+
+@app.get("/health", tags=["Health"])
+def root_health_alias(db: Session = Depends(get_db)):
+    """Lightweight root health alias for load balancers and container probes."""
+    return check_health(db)

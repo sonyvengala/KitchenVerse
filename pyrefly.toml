@@ -1,0 +1,47 @@
+project-includes = [
+    "backend",
+    "tests",
+]
+project-excludes = [
+    "**/node_modules",
+    "**/__pycache__",
+    "backend/venv",
+]
+search-path = [
+    ".",
+    "backend",
+    "backend/venv/Lib/site-packages",
+]
+site-package-path = [
+    "backend/venv/Lib/site-packages",
+]
+disable-search-path-heuristics = true
+python-interpreter-path = "backend/venv/Scripts/python.exe"
+python-platform = "win32"
+python-version = "3.12.10"
+infer-with-first-use = false
+
+[errors]
+bad-assignment = "ignore"
+not-async = "ignore"
+missing-attribute = "ignore"
+unexpected-keyword = "ignore"
+unsupported-operation = "ignore"
+invalid-argument = "ignore"
+missing-source-for-stubs = "ignore"
+missing-import = "error"
+missing-argument = "ignore"
+bad-argument-count = "ignore"
+not-callable = "ignore"
+no-access = "ignore"
+bad-keyword-argument = "ignore"
+missing-module-attribute = "ignore"
+missing-source = "error"
+unexpected-positional-argument = "ignore"
+bad-argument-type = "ignore"
+read-only = "ignore"
+unknown-name = "error"
+incompatible-overload-residual = "ignore"
+no-matching-overload = "ignore"
+unnecessary-type-conversion = "ignore"
+unnecessary-comparison = "ignore"

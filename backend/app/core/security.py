@@ -1,83 +1,64 @@
-"""Security utilities: password hashing and JWT token management."""
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any
-
-from jose import jwt, JWTError
-from passlib.context import CryptContext
-
-from app.core.config import settings
-
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+"""
+Security utilities: password hashing with bcrypt, session token generation,
+and cryptographically secure verification tokens.
+"""
+import secrets
+import bcrypt
 
 
-def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
-    return pwd_context.hash(password)
+def get_password_hash(password: str) -> str:
+    """Hash a plaintext password using bcrypt."""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
+
+# Alias to maintain backwards and cross-module compatibility
+hash_password = get_password_hash
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token."""
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    to_encode.update({"exp": expire, "type": "access"})
-    return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
-
-
-def create_refresh_token(data: Dict[str, Any]) -> str:
-    """Create a JWT refresh token."""
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire, "type": "refresh"})
-    return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
-
-
-def create_email_verification_token(user_id: str) -> str:
-    """Create an email verification token."""
-    to_encode = {"sub": user_id, "type": "email_verification"}
-    expire = datetime.now(timezone.utc) + timedelta(hours=24)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
-
-
-def create_password_reset_token(user_id: str) -> str:
-    """Create a password reset token."""
-    to_encode = {"sub": user_id, "type": "password_reset"}
-    expire = datetime.now(timezone.utc) + timedelta(hours=1)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
-
-
-def decode_token(token: str) -> Dict[str, Any]:
-    """Decode and validate a JWT token."""
+    """Verify a plaintext password against a stored bcrypt hash."""
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-        return payload
-    except JWTError:
-        return None
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except Exception:
+        return False
 
 
-def validate_password_strength(password: str) -> list:
+def generate_session_id() -> str:
+    """Generate a cryptographically secure 256-bit session token."""
+    return secrets.token_hex(32)
+
+
+def generate_verification_token(user_id: str = None, email: str = None) -> str:
+    """Generate a URL-safe, cryptographically signed, timestamped token for email verification."""
+    from itsdangerous import URLSafeTimedSerializer
+    from backend.app.core.config import settings
+
+    serializer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="email-verification")
+    payload = {
+        "user_id": str(user_id) if user_id else "",
+        "email": str(email).lower() if email else "",
+        "nonce": secrets.token_hex(16),
+    }
+    return serializer.dumps(payload)
+
+
+def verify_verification_token(token: str, max_age: int = 86400) -> tuple:
     """
-    Validate password meets security requirements.
-    Returns list of error messages (empty if valid).
+    Validates a timed signed verification token.
+    Returns (payload_dict, error_string_or_None).
+    error_string can be 'expired', 'invalid', or None.
     """
-    errors = []
-    if len(password) < 8:
-        errors.append("Password must be at least 8 characters long")
-    if not any(c.isupper() for c in password):
-        errors.append("Password must contain at least one uppercase letter")
-    if not any(c.islower() for c in password):
-        errors.append("Password must contain at least one lowercase letter")
-    if not any(c.isdigit() for c in password):
-        errors.append("Password must contain at least one digit")
-    if not any(c in "!@#$%^&*()_+-=[]{}|;:',.<>?/~`" for c in password):
-        errors.append("Password must contain at least one special character")
-    return errors
+    from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+    from backend.app.core.config import settings
+
+    serializer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="email-verification")
+    try:
+        data = serializer.loads(token, max_age=max_age)
+        return data, None
+    except SignatureExpired:
+        return None, "expired"
+    except BadSignature:
+        return None, "invalid"
+    except Exception:
+        return None, "invalid"

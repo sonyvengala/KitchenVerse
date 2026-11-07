@@ -216,7 +216,9 @@ class InventoryItem(BaseModel):
     quantity_on_hand: float
     min_quantity: float
     max_quantity: Optional[float] = None
-    unit_cost: float
+    unit_cost: Optional[float] = None
+    cost_available: bool = False
+    stock_value: Optional[float] = None
     last_restocked_at: Optional[datetime] = None
     kitchen: Optional[KitchenSummary] = None
     ingredient: Optional[IngredientSummary] = None

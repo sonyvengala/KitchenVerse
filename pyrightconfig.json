@@ -1,0 +1,30 @@
+{
+  "include": [
+    "backend",
+    "tests"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "backend/venv"
+  ],
+  "venvPath": "backend",
+  "venv": "venv",
+  "pythonVersion": "3.12",
+  "pythonPlatform": "Windows",
+  "extraPaths": [
+    ".",
+    "backend",
+    "backend/venv/Lib/site-packages"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "error",
+  "reportMissingModuleSource": "error",
+  "reportUndefinedVariable": "error",
+  "reportArgumentType": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportOptionalSubscript": "none",
+  "reportCallIssue": "none"
+}

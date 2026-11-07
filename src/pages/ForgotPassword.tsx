@@ -12,18 +12,20 @@ export default function ForgotPassword() {
   const [sent, setSent] = useState(false);
   const [emailConfigured, setEmailConfigured] = useState(true);
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
     try {
       const response = await authService.forgotPassword(email);
       setSent(true);
-      setEmailConfigured(response.email_configured);
-      setMessage(response.message);
+      setEmailConfigured(Boolean(response.email_configured));
+      setMessage(response.message || 'If an account exists, instructions have been prepared.');
     } catch (err: any) {
-      setMessage(err.detail || 'Something went wrong. Please try again.');
+      setError(err?.detail || err?.message || 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -34,26 +36,33 @@ export default function ForgotPassword() {
       {sent ? (
         <div className="text-center space-y-4">
           {!emailConfigured ? (
-            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg text-sm text-left">
               <p className="font-medium mb-1">⚠️ Email Service Not Configured</p>
               <p>{message}</p>
-              <p className="mt-2 text-xs">
+              <p className="mt-2 text-xs text-yellow-700">
                 In production, a password reset email would be sent to your address.
-                Please configure the email provider in the backend settings.
+                Please configure SMTP or SendGrid provider credentials in backend environment settings.
               </p>
             </div>
           ) : (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
-              <p className="font-medium">✓ Reset Email Sent</p>
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm text-left">
+              <p className="font-medium mb-1">✓ Reset Instructions Prepared</p>
               <p>{message}</p>
             </div>
           )}
-          <Link to="/login" className="text-orange-600 font-medium hover:text-orange-700">
-            Back to Login
-          </Link>
+          <div>
+            <Link to="/login" className="inline-block mt-2 text-orange-600 font-medium hover:text-orange-700">
+              Back to Login
+            </Link>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-5">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email Address

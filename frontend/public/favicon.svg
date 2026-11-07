@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="kv-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#166534"/>
+      <stop offset="100%" stop-color="#14532d"/>
+    </linearGradient>
+    <linearGradient id="kv-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#F97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#kv-grad)"/>
+  <circle cx="32" cy="18" r="3" fill="url(#kv-accent)"/>
+  <path d="M16 32 C16 23 23 20 32 20 C41 20 48 23 48 32 Z" fill="url(#kv-accent)"/>
+  <rect x="14" y="34" width="36" height="4" rx="2" fill="#FFFFFF"/>
+  <path d="M22 42 L22 49 M32 42 L32 49 M42 42 L42 49" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

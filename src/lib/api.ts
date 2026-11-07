@@ -10,7 +10,9 @@
  * - Token refresh
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined
+  ? import.meta.env.VITE_API_URL
+  : (typeof window !== 'undefined' ? '' : 'http://localhost:8000');
 
 class ApiClientError extends Error {
   status: number;
@@ -30,6 +32,9 @@ class ApiClient {
   private baseUrl: string;
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
+  private inFlightRequests: Map<string, Promise<any>> = new Map();
+  private cache: Map<string, { data: any; expiry: number }> = new Map();
+  private readonly DEFAULT_CACHE_TTL = 8000; // 8 seconds TTL for GET requests
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
@@ -37,46 +42,136 @@ class ApiClient {
   }
 
   /**
-   * Load tokens from localStorage on initialization.
+   * Invalidate all or matching cache entries upon state mutation.
    */
-  private loadTokens(): void {
-    try {
-      const stored = localStorage.getItem('auth_tokens');
-      if (stored) {
-        const tokens = JSON.parse(stored);
-        this.accessToken = tokens.access_token;
-        this.refreshToken = tokens.refresh_token;
+  clearCache(pattern?: string): void {
+    if (!pattern) {
+      this.cache.clear();
+      return;
+    }
+    for (const key of this.cache.keys()) {
+      if (key.includes(pattern)) {
+        this.cache.delete(key);
       }
-    } catch {
-      this.clearTokens();
     }
   }
 
   /**
-   * Store tokens in localStorage.
+   * Load tokens from storage on initialization, route transitions, or requests.
+   * Checks tab-scoped sessionStorage first to allow concurrent multi-role tabs.
    */
-  setTokens(accessToken: string, refreshToken: string): void {
+  loadTokens(): void {
+    try {
+      const path = typeof window !== 'undefined' ? window.location.pathname : '';
+      let roleScope: string | null = null;
+      if (path.startsWith('/admin')) {
+        roleScope = 'ADMIN';
+      } else if (path.startsWith('/kitchen')) {
+        roleScope = 'KITCHEN_OWNER';
+      } else if (path.startsWith('/customer')) {
+        roleScope = 'CUSTOMER';
+      }
+
+      let stored: string | null = null;
+
+      // 1. Role-scoped tab sessionStorage (dedicated tab for this portal)
+      if (roleScope && typeof sessionStorage !== 'undefined') {
+        stored = sessionStorage.getItem(`auth_tokens_${roleScope}`);
+      }
+
+      // 2. Generic tab sessionStorage
+      if (!stored && typeof sessionStorage !== 'undefined') {
+        stored = sessionStorage.getItem('auth_tokens');
+      }
+
+      // 3. Role-scoped localStorage (persisted for this browser profile)
+      if (!stored && roleScope && typeof localStorage !== 'undefined') {
+        stored = localStorage.getItem(`auth_tokens_${roleScope}`);
+      }
+
+      // 4. Fallback to generic localStorage
+      if (!stored && typeof localStorage !== 'undefined') {
+        stored = localStorage.getItem('auth_tokens');
+      }
+
+      if (stored) {
+        const tokens = JSON.parse(stored);
+        this.accessToken = tokens.access_token || null;
+        this.refreshToken = tokens.refresh_token || null;
+      } else {
+        this.accessToken = null;
+        this.refreshToken = null;
+      }
+    } catch {
+      this.accessToken = null;
+      this.refreshToken = null;
+    }
+  }
+
+  /**
+   * Store tokens in sessionStorage (per-tab) and localStorage (per-profile).
+   */
+  setTokens(accessToken: string, refreshToken: string, role?: string): void {
+    if (!accessToken || accessToken === 'cookie-session' || accessToken === 'null' || accessToken === 'undefined') {
+      return;
+    }
     this.accessToken = accessToken;
     this.refreshToken = refreshToken;
-    localStorage.setItem('auth_tokens', JSON.stringify({
+    const payload = JSON.stringify({
       access_token: accessToken,
       refresh_token: refreshToken,
-    }));
+      role: role || null,
+    });
+
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('auth_tokens', payload);
+        if (role) {
+          sessionStorage.setItem(`auth_tokens_${role}`, payload);
+        }
+      }
+      if (typeof localStorage !== 'undefined') {
+        if (role) {
+          localStorage.setItem(`auth_tokens_${role}`, payload);
+        } else {
+          localStorage.setItem('auth_tokens', payload);
+        }
+      }
+    } catch {
+      // Ignore private storage limitations
+    }
   }
 
   /**
-   * Clear stored tokens.
+   * Clear stored tokens for this tab and role.
    */
-  clearTokens(): void {
+  clearTokens(role?: string): void {
     this.accessToken = null;
     this.refreshToken = null;
-    localStorage.removeItem('auth_tokens');
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('auth_tokens');
+        if (role) {
+          sessionStorage.removeItem(`auth_tokens_${role}`);
+        }
+      }
+      if (typeof localStorage !== 'undefined') {
+        if (role) {
+          localStorage.removeItem(`auth_tokens_${role}`);
+        } else {
+          localStorage.removeItem('auth_tokens');
+        }
+      }
+    } catch {
+      // Ignore
+    }
   }
 
   /**
-   * Get the current access token.
+   * Get the current access token, reloading from storage to ensure freshest tab/role context.
    */
   getAccessToken(): string | null {
+    this.loadTokens();
     return this.accessToken;
   }
 
@@ -84,18 +179,20 @@ class ApiClient {
    * Check if user is authenticated (has a token).
    */
   isAuthenticated(): boolean {
-    return !!this.accessToken;
+    return !!this.getAccessToken();
   }
 
   /**
    * Build request headers with auth token.
    */
-  private getHeaders(includeAuth: boolean = true): HeadersInit {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-    if (includeAuth && this.accessToken) {
-      headers['Authorization'] = `Bearer ${this.accessToken}`;
+  private getHeaders(includeAuth: boolean = true, isFormData: boolean = false): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
+    const token = this.getAccessToken();
+    if (includeAuth && token && token !== 'cookie-session' && token !== 'null' && token !== 'undefined') {
+      headers['Authorization'] = `Bearer ${token}`;
     }
     return headers;
   }
@@ -113,107 +210,227 @@ class ApiClient {
     }
 
     // Parse error response
-    let errorData: any;
-    try {
-      errorData = await response.json();
-    } catch {
-      errorData = { detail: 'An unexpected error occurred' };
+    let errorData: any = null;
+    const rawText = await response.text().catch(() => '');
+    if (rawText) {
+      try {
+        errorData = JSON.parse(rawText);
+      } catch {
+        errorData = null;
+      }
     }
 
-    // Handle 401 - Unauthorized (token expired or invalid)
+    let errorMessage = '';
+    let errorList: string[] | undefined = undefined;
+
+    if (typeof errorData?.detail === 'string') {
+      errorMessage = errorData.detail;
+    } else if (Array.isArray(errorData?.detail)) {
+      const items = errorData.detail.map((e: any) =>
+        typeof e === 'string' ? e : (e.msg || e.message || JSON.stringify(e))
+      );
+      errorList = items;
+      errorMessage = items.join(', ');
+    } else if (errorData?.detail && typeof errorData.detail === 'object') {
+      errorMessage = errorData.detail.msg || errorData.detail.message || JSON.stringify(errorData.detail);
+    } else if (typeof errorData?.message === 'string') {
+      errorMessage = errorData.message;
+    }
+
+    // Handle 401 - Unauthorized (token expired, invalid credentials)
     if (response.status === 401) {
       this.clearTokens();
-      // Redirect to login if not already there
-      if (!window.location.pathname.includes('/login')) {
+      const isAuthCheck = response.url.includes('/api/v1/auth/me');
+      const authPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
+      const path = typeof window !== 'undefined' ? window.location.pathname : '';
+      const onAuthPage = authPaths.some(p => path.includes(p));
+      const isProtectedPage = (
+        path.startsWith('/admin') ||
+        path === '/kitchen' ||
+        path.startsWith('/kitchen/') ||
+        path.startsWith('/kitchen-owner') ||
+        path.startsWith('/orders') ||
+        path.startsWith('/checkout')
+      );
+      if (!onAuthPage && !isAuthCheck && isProtectedPage && typeof window !== 'undefined') {
         window.location.href = '/login';
       }
+      throw new ApiClientError(401, errorMessage || 'Invalid email or password');
     }
 
     // Handle 403 - Forbidden
     if (response.status === 403) {
-      const detail = errorData?.detail || 'Access denied';
-      throw new ApiClientError(403, detail);
+      throw new ApiClientError(403, errorMessage || 'Access denied. Your account may be inactive or not yet approved.');
+    }
+
+    // Handle 404 - Not found
+    if (response.status === 404) {
+      throw new ApiClientError(404, errorMessage || 'Resource not found');
     }
 
     // Handle 422 - Validation errors
     if (response.status === 422) {
-      const errors = errorData?.detail?.map((e: any) => e.msg || e.message) || [];
-      throw new ApiClientError(422, 'Validation failed', errors);
+      throw new ApiClientError(422, errorMessage || 'Please check your input and try again', errorList);
     }
 
-    // Handle 409 - Conflict (e.g., duplicate email)
-    if (response.status === 409) {
-      throw new ApiClientError(409, errorData?.detail || 'Resource already exists');
+    // Handle 429 - Rate limit
+    if (response.status === 429) {
+      throw new ApiClientError(429, errorMessage || 'Too many requests. Please wait before trying again.');
     }
 
-    // Handle 500 - Server error
+    // Handle 400 / 409 - Bad request / Conflict (e.g., duplicate email)
+    if (response.status === 400 || response.status === 409) {
+      throw new ApiClientError(response.status, errorMessage || 'Request could not be processed');
+    }
+
+    // Handle 500+ - Server/proxy error
     if (response.status >= 500) {
-      throw new ApiClientError(500, 'Server error. Please try again later.');
+      // Empty body usually means Vite proxy couldn't reach the backend
+      if (!rawText) {
+        throw new ApiClientError(
+          response.status,
+          'Cannot connect to server. Please ensure the backend server is running.'
+        );
+      }
+      throw new ApiClientError(response.status, errorMessage || 'Server error. Please try again later.');
     }
 
     // Generic error
     throw new ApiClientError(
       response.status,
-      errorData?.detail || `Request failed with status ${response.status}`
+      errorMessage || `Request failed with status ${response.status}`
     );
   }
 
   /**
-   * Make a GET request.
+   * Make a GET request with in-flight deduplication and short-lived caching.
+   * @param path The endpoint path
+   * @param includeAuth Whether to include Authorization header
+   * @param useCache Whether to use/populate the memory cache (default: true)
    */
-  async get<T = any>(path: string, includeAuth: boolean = true): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: 'GET',
-      headers: this.getHeaders(includeAuth),
-    });
-    return this.handleResponse(response);
+  async get<T = any>(path: string, includeAuth: boolean = true, useCache: boolean = true): Promise<T> {
+    const cacheKey = `${includeAuth ? 'auth:' : 'noauth:'}${path}`;
+    const now = Date.now();
+
+    // 1. Check TTL cache
+    if (useCache) {
+      const cached = this.cache.get(cacheKey);
+      if (cached && cached.expiry > now) {
+        return cached.data as T;
+      }
+    }
+
+    // 2. Check for in-flight request deduplication
+    if (this.inFlightRequests.has(cacheKey)) {
+      return this.inFlightRequests.get(cacheKey) as Promise<T>;
+    }
+
+    // 3. Dispatch network request
+    const requestPromise = (async () => {
+      try {
+        const response = await fetch(`${this.baseUrl}${path}`, {
+          method: 'GET',
+          headers: this.getHeaders(includeAuth),
+          credentials: 'include',
+        });
+        const data = await this.handleResponse(response);
+
+        // Store in short-lived cache
+        if (useCache) {
+          this.cache.set(cacheKey, {
+            data,
+            expiry: Date.now() + this.DEFAULT_CACHE_TTL,
+          });
+        }
+        return data as T;
+      } catch (err: any) {
+        if (err instanceof ApiClientError) throw err;
+        throw new ApiClientError(0, err.message || 'Cannot connect to server. Please ensure the backend server is running.');
+      } finally {
+        this.inFlightRequests.delete(cacheKey);
+      }
+    })();
+
+    this.inFlightRequests.set(cacheKey, requestPromise);
+    return requestPromise;
   }
 
   /**
-   * Make a POST request.
+   * Make a POST request (invalidates cache).
    */
   async post<T = any>(path: string, body?: any, includeAuth: boolean = true): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
-      headers: this.getHeaders(includeAuth),
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return this.handleResponse(response);
+    this.clearCache();
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: 'POST',
+        headers: this.getHeaders(includeAuth, isFormData),
+        body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+        credentials: 'include',
+      });
+      return await this.handleResponse(response);
+    } catch (err: any) {
+      if (err instanceof ApiClientError) throw err;
+      throw new ApiClientError(0, err.message || 'Cannot connect to server. Please verify backend is running.');
+    }
   }
 
   /**
-   * Make a PUT request.
+   * Make a PUT request (invalidates cache).
    */
   async put<T = any>(path: string, body?: any, includeAuth: boolean = true): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: 'PUT',
-      headers: this.getHeaders(includeAuth),
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return this.handleResponse(response);
+    this.clearCache();
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: 'PUT',
+        headers: this.getHeaders(includeAuth, isFormData),
+        body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+        credentials: 'include',
+      });
+      return await this.handleResponse(response);
+    } catch (err: any) {
+      if (err instanceof ApiClientError) throw err;
+      throw new ApiClientError(0, err.message || 'Cannot connect to server. Please verify backend is running.');
+    }
   }
 
   /**
-   * Make a PATCH request.
+   * Make a PATCH request (invalidates cache).
    */
   async patch<T = any>(path: string, body?: any, includeAuth: boolean = true): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: 'PATCH',
-      headers: this.getHeaders(includeAuth),
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return this.handleResponse(response);
+    this.clearCache();
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: 'PATCH',
+        headers: this.getHeaders(includeAuth, isFormData),
+        body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+        credentials: 'include',
+      });
+      return await this.handleResponse(response);
+    } catch (err: any) {
+      if (err instanceof ApiClientError) throw err;
+      throw new ApiClientError(0, err.message || 'Cannot connect to server. Please verify backend is running.');
+    }
   }
 
   /**
-   * Make a DELETE request.
+   * Make a DELETE request (invalidates cache).
    */
   async delete<T = any>(path: string, includeAuth: boolean = true): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(includeAuth),
-    });
-    return this.handleResponse(response);
+    this.clearCache();
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: 'DELETE',
+        headers: this.getHeaders(includeAuth),
+        credentials: 'include',
+      });
+      return await this.handleResponse(response);
+    } catch (err: any) {
+      if (err instanceof ApiClientError) throw err;
+      throw new ApiClientError(0, err.message || 'Cannot connect to server. Please verify backend is running.');
+    }
   }
 }
 

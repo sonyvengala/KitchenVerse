@@ -5,6 +5,7 @@ import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import AuthLayout from '../layouts/AuthLayout';
+import { LicenseUploadSection } from '../components/license/LicenseUploadSection';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -14,12 +15,24 @@ export default function Register() {
     first_name: '',
     last_name: '',
     role: 'CUSTOMER' as 'CUSTOMER' | 'KITCHEN_OWNER',
+    kitchen_name: '',
+    address: '',
+    city: '',
+    phone_number: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { register, clearError } = useAuth();
   const navigate = useNavigate();
+
+  const [licenseData, setLicenseData] = useState({
+    license_number: '',
+    business_name: '',
+    expiry_date: '',
+    document_base64: '',
+    filename: '',
+  });
 
   const validatePassword = (password: string): string[] => {
     const errors: string[] = [];
@@ -49,6 +62,17 @@ export default function Register() {
       return;
     }
 
+    if (formData.role === 'KITCHEN_OWNER') {
+      if (!licenseData.license_number || !licenseData.license_number.trim()) {
+        setError('FSSAI License registration number is required for kitchen owners.');
+        return;
+      }
+      if (!licenseData.document_base64) {
+        setError('FSSAI License document is required for kitchen owners.');
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
@@ -58,11 +82,23 @@ export default function Register() {
         first_name: formData.first_name,
         last_name: formData.last_name,
         role: formData.role,
+        kitchen_name: formData.kitchen_name || undefined,
+        address: formData.address || undefined,
+        city: formData.city || undefined,
+        phone_number: formData.phone_number || undefined,
+        fssai_license_number: formData.role === 'KITCHEN_OWNER' ? licenseData.license_number : undefined,
+        fssai_business_name: formData.role === 'KITCHEN_OWNER' ? licenseData.business_name : undefined,
+        fssai_expiry_date: formData.role === 'KITCHEN_OWNER' ? licenseData.expiry_date : undefined,
+        fssai_document_data: formData.role === 'KITCHEN_OWNER' ? licenseData.document_base64 : undefined,
+        fssai_filename: formData.role === 'KITCHEN_OWNER' ? licenseData.filename : undefined,
       });
       setSuccess(message || 'Registration successful! Please check your email to verify your account.');
-      setTimeout(() => navigate('/login'), 3000);
+      setTimeout(() => navigate('/login'), 3500);
     } catch (err: any) {
-      setError(err.errors?.join(', ') || err.detail || 'Registration failed');
+      const msg = (Array.isArray(err?.errors) && err.errors.length > 0)
+        ? err.errors.join(', ')
+        : (err?.detail || err?.message || 'Registration failed');
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -73,7 +109,7 @@ export default function Register() {
   };
 
   return (
-    <AuthLayout title="Create Account" subtitle="Join the Cloud Kitchen platform">
+    <AuthLayout title="Create Account" subtitle="Join the KitchenVerse platform">
       {success ? (
         <div className="text-center">
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm mb-4">
@@ -151,6 +187,82 @@ export default function Register() {
               <option value="KITCHEN_OWNER">Kitchen Owner</option>
             </select>
           </div>
+
+          {formData.role === 'KITCHEN_OWNER' && (
+            <div className="space-y-3 p-3 bg-orange-50/60 border border-orange-200/70 rounded-lg">
+              <h3 className="text-xs font-semibold text-orange-900 uppercase tracking-wider">
+                Kitchen Information (Requires Admin Approval)
+              </h3>
+              <div>
+                <label htmlFor="kitchen_name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Kitchen Name
+                </label>
+                <input
+                  id="kitchen_name"
+                  type="text"
+                  required
+                  value={formData.kitchen_name}
+                  onChange={(e) => updateField('kitchen_name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition text-sm bg-white"
+                  placeholder="e.g. Royal Curry Kitchen"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                    City
+                  </label>
+                  <input
+                    id="city"
+                    type="text"
+                    required
+                    value={formData.city}
+                    onChange={(e) => updateField('city', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition text-sm bg-white"
+                    placeholder="Bangalore"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone (Optional)
+                  </label>
+                  <input
+                    id="phone_number"
+                    type="tel"
+                    value={formData.phone_number}
+                    onChange={(e) => updateField('phone_number', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition text-sm bg-white"
+                    placeholder="+91 9876543210"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+                  Kitchen Address
+                </label>
+                <input
+                  id="address"
+                  type="text"
+                  required
+                  value={formData.address}
+                  onChange={(e) => updateField('address', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition text-sm bg-white"
+                  placeholder="123 Food Street, Indiranagar"
+                />
+              </div>
+
+              {/* FSSAI License Document & Number Requirement */}
+              <LicenseUploadSection
+                initialLicenseNumber={licenseData.license_number}
+                initialBusinessName={licenseData.business_name}
+                initialExpiryDate={licenseData.expiry_date}
+                required={true}
+                onChange={(data) => setLicenseData(data)}
+              />
+            </div>
+          )}
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">

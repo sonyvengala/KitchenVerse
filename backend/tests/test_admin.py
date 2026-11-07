@@ -6,7 +6,7 @@ from tests.conftest import TEST_USER, TEST_KITCHEN_OWNER
 
 
 # Helper to get admin token (requires admin user in DB)
-async def get_admin_token(client: AsyncClient) -> str:
+async def get_admin_token(client: AsyncClient) -> None:
     """Get admin token - requires admin user to exist in DB."""
     # For testing, we'll need to create an admin user first
     # This is a placeholder - in real tests, you'd create admin via bootstrap script

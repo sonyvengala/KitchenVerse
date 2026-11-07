@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { adminApi, MenuItem } from '../../services/adminApi';
 import { DataTable, Badge, Pagination, SearchInput, PageHeader, Card, LoadingState, ErrorState } from '../../components/admin/AdminComponents';
+import { formatINR } from '../../utils/currency';
 
 export default function AdminMenu() {
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -54,7 +55,7 @@ export default function AdminMenu() {
     {
       key: 'price',
       header: 'Price',
-      render: (item: MenuItem) => `$${item.price.toFixed(2)}`,
+      render: (item: MenuItem) => <span className="font-semibold text-gray-900">{formatINR(item.price)}</span>,
     },
     {
       key: 'is_available',

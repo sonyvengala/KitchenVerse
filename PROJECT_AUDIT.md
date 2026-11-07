@@ -1,4 +1,4 @@
-# PROJECT AUDIT: Unified Cloud Kitchen Platform
+# PROJECT AUDIT: KitchenVerse
 
 **Audit Date:** 2026  
 **Project Name:** sandbox-workspace  

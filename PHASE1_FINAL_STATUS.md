@@ -51,7 +51,7 @@
 ### Health endpoint: PASS (Code Review)
 - Endpoint: GET /health
 - Implementation verified in app/main.py
-- Returns: {"status": "healthy", "app": "Unified Cloud Kitchen Platform", "environment": "..."}
+- Returns: {"status": "healthy", "app": "KitchenVerse", "environment": "..."}
 - **Note**: Requires running backend server to verify HTTP response
 
 ## Database

@@ -2,9 +2,10 @@
  * User profile page (protected).
  */
 import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import authService from '../services/authService';
+import SavedAddressesManager from '../components/customer/SavedAddressesManager';
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -78,7 +79,7 @@ export default function Profile() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-800">Cloud Kitchen Platform</h1>
+          <h1 className="text-xl font-bold text-gray-800">KitchenVerse Platform</h1>
           <button
             onClick={handleLogout}
             className="text-sm text-gray-600 hover:text-red-600 font-medium transition"
@@ -174,6 +175,12 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+
+            {user.role === 'CUSTOMER' && (
+              <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
+                <SavedAddressesManager />
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -239,12 +246,79 @@ export default function Profile() {
 
             {/* Quick Actions */}
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Quick Actions</h3>
-              <div className="space-y-2">
-                <p className="text-sm text-gray-500">
-                  More features coming in Phase 2...
-                </p>
-              </div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                {user.role === 'KITCHEN_OWNER' ? 'Kitchen Owner Actions' : user.role === 'ADMIN' ? 'Admin Actions' : 'Quick Actions'}
+              </h3>
+              
+              {user.role === 'KITCHEN_OWNER' && (
+                <div className="space-y-3">
+                  <Link
+                    to="/kitchen/dashboard"
+                    className="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm transition"
+                  >
+                    Open Kitchen Owner Portal →
+                  </Link>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <Link
+                      to="/kitchen/orders"
+                      className="p-2.5 bg-gray-50 hover:bg-emerald-50 rounded-lg text-gray-700 font-medium text-center border border-gray-100 transition"
+                    >
+                      📦 Live Orders
+                    </Link>
+                    <Link
+                      to="/kitchen/menu"
+                      className="p-2.5 bg-gray-50 hover:bg-emerald-50 rounded-lg text-gray-700 font-medium text-center border border-gray-100 transition"
+                    >
+                      🍲 Menu Items
+                    </Link>
+                    <Link
+                      to="/kitchen/inventory"
+                      className="p-2.5 bg-gray-50 hover:bg-emerald-50 rounded-lg text-gray-700 font-medium text-center border border-gray-100 transition"
+                    >
+                      📊 Inventory Ledger
+                    </Link>
+                    <Link
+                      to="/kitchen/forecast"
+                      className="p-2.5 bg-gray-50 hover:bg-emerald-50 rounded-lg text-gray-700 font-medium text-center border border-gray-100 transition"
+                    >
+                      📈 Demand Forecast
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {user.role === 'ADMIN' && (
+                <div className="space-y-3">
+                  <Link
+                    to="/admin/dashboard"
+                    className="block w-full text-center bg-purple-600 hover:bg-purple-700 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm transition"
+                  >
+                    Open Admin Portal →
+                  </Link>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <Link
+                      to="/admin/kitchens"
+                      className="p-2.5 bg-gray-50 hover:bg-purple-50 rounded-lg text-gray-700 font-medium text-center border border-gray-100 transition"
+                    >
+                      🏪 Manage Kitchens
+                    </Link>
+                    <Link
+                      to="/admin/users"
+                      className="p-2.5 bg-gray-50 hover:bg-purple-50 rounded-lg text-gray-700 font-medium text-center border border-gray-100 transition"
+                    >
+                      👥 Manage Users
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {user.role === 'CUSTOMER' && (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    Welcome to your Customer Account! You can browse kitchens, place orders, and manage dining preferences.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

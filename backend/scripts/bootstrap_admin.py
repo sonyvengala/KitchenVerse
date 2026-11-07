@@ -37,13 +37,14 @@ import sys
 import re
 from getpass import getpass
 
-# Add backend to path
+# Add project root and backend to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import select
-from app.database.session import async_session_factory, init_db
-from app.models.user import User, UserRole, UserStatus, CustomerProfile
-from app.core.security import hash_password
+from backend.app.database.session import async_session_factory, init_db
+from backend.app.models.user import User, UserRole, UserStatus, CustomerProfile
+from backend.app.core.security import hash_password
 
 
 def validate_password(password: str) -> list:
