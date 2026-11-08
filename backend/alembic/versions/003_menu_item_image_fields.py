@@ -15,14 +15,45 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('menu_items', sa.Column('image_source', sa.String(30), nullable=False, server_default='MANUAL'))
-    op.add_column('menu_items', sa.Column('manual_image_url', sa.String(500), nullable=True))
-    op.add_column('menu_items', sa.Column('ai_image_url', sa.String(500), nullable=True))
-    op.add_column('menu_items', sa.Column('ai_image_prompt', sa.Text(), nullable=True))
+    bind = op.get_bind()
+    try:
+        inspector = sa.inspect(bind)
+        table_names = set(inspector.get_table_names())
+    except Exception:
+        inspector = None
+        table_names = set()
+
+    if 'menu_items' in table_names:
+        cols = {c['name'] for c in inspector.get_columns('menu_items')}
+        if 'image_source' not in cols:
+            op.add_column('menu_items', sa.Column('image_source', sa.String(30), nullable=False, server_default='MANUAL'))
+        if 'manual_image_url' not in cols:
+            op.add_column('menu_items', sa.Column('manual_image_url', sa.String(500), nullable=True))
+        if 'ai_image_url' not in cols:
+            op.add_column('menu_items', sa.Column('ai_image_url', sa.String(500), nullable=True))
+        if 'ai_image_prompt' not in cols:
+            op.add_column('menu_items', sa.Column('ai_image_prompt', sa.Text(), nullable=True))
+    elif inspector is None:
+        op.add_column('menu_items', sa.Column('image_source', sa.String(30), nullable=False, server_default='MANUAL'))
+        op.add_column('menu_items', sa.Column('manual_image_url', sa.String(500), nullable=True))
+        op.add_column('menu_items', sa.Column('ai_image_url', sa.String(500), nullable=True))
+        op.add_column('menu_items', sa.Column('ai_image_prompt', sa.Text(), nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column('menu_items', 'ai_image_prompt')
-    op.drop_column('menu_items', 'ai_image_url')
-    op.drop_column('menu_items', 'manual_image_url')
-    op.drop_column('menu_items', 'image_source')
+    bind = op.get_bind()
+    try:
+        inspector = sa.inspect(bind)
+        table_names = set(inspector.get_table_names())
+    except Exception:
+        inspector = None
+        table_names = set()
+
+    if 'menu_items' in table_names:
+        cols = {c['name'] for c in inspector.get_columns('menu_items')}
+        for col in ['ai_image_prompt', 'ai_image_url', 'manual_image_url', 'image_source']:
+            if col in cols:
+                op.drop_column('menu_items', col)
+    elif inspector is None:
+        for col in ['ai_image_prompt', 'ai_image_url', 'manual_image_url', 'image_source']:
+            op.drop_column('menu_items', col)

@@ -15,8 +15,34 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('ingredients', sa.Column('unit_cost', sa.Float(), nullable=True))
+    bind = op.get_bind()
+    try:
+        inspector = sa.inspect(bind)
+        tables = set(inspector.get_table_names())
+    except Exception:
+        inspector = None
+        tables = set()
+
+    if 'ingredients' in tables:
+        columns = {c['name'] for c in inspector.get_columns('ingredients')}
+        if 'unit_cost' not in columns:
+            op.add_column('ingredients', sa.Column('unit_cost', sa.Float(), nullable=True))
+    elif inspector is None:
+        op.add_column('ingredients', sa.Column('unit_cost', sa.Float(), nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column('ingredients', 'unit_cost')
+    bind = op.get_bind()
+    try:
+        inspector = sa.inspect(bind)
+        tables = set(inspector.get_table_names())
+    except Exception:
+        inspector = None
+        tables = set()
+
+    if 'ingredients' in tables:
+        columns = {c['name'] for c in inspector.get_columns('ingredients')}
+        if 'unit_cost' in columns:
+            op.drop_column('ingredients', 'unit_cost')
+    elif inspector is None:
+        op.drop_column('ingredients', 'unit_cost')
