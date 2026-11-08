@@ -16,6 +16,9 @@ function getLoginErrorMessage(err: any): string {
   if (status === 0 || status === 502 || status === 503 || status === 504) {
     return 'Cannot connect to server. Please ensure the backend is running and try again.';
   }
+  if (status === 404) {
+    return 'Authentication service endpoint not found (404). Please ensure the backend server is running and API URL is configured correctly.';
+  }
   if (status >= 500) {
     return 'Server error. Please try again in a moment.';
   }

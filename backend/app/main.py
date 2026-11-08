@@ -32,18 +32,51 @@ async def lifespan(app: FastAPI):
     try:
         admin = db.query(User).filter(User.role == UserRole.ADMIN).first()
         if not admin:
-            admin_user = User(
-                id=str(uuid.uuid4()),
-                email="admin@cloudkitchen.com",
-                hashed_password=get_password_hash("AdminPass123!"),
-                full_name="Super Administrator",
-                phone_number="+919999999999",
-                role=UserRole.ADMIN,
-                is_active=True,
-                is_verified=True,
-            )
-            db.add(admin_user)
-            db.commit()
+            is_prod = str(settings.APP_ENV).lower() == "production"
+            admin_email = os.getenv("ADMIN_EMAIL")
+            admin_password = os.getenv("ADMIN_PASSWORD")
+
+            if is_prod:
+                # In production, NEVER use insecure default passwords or accounts
+                if not admin_email or not admin_password:
+                    import logging
+                    logging.getLogger("uvicorn.error").warning(
+                        "Production admin bootstrap skipped: ADMIN_EMAIL and ADMIN_PASSWORD must be explicitly configured via environment variables."
+                    )
+                elif len(admin_password) < 8:
+                    import logging
+                    logging.getLogger("uvicorn.error").warning(
+                        "Production admin bootstrap skipped: ADMIN_PASSWORD must be at least 8 characters."
+                    )
+                else:
+                    admin_user = User(
+                        id=str(uuid.uuid4()),
+                        email=admin_email.strip().lower(),
+                        hashed_password=get_password_hash(admin_password),
+                        full_name=os.getenv("ADMIN_NAME", "Platform Administrator"),
+                        phone_number=os.getenv("ADMIN_PHONE", "+919999999999"),
+                        role=UserRole.ADMIN,
+                        is_active=True,
+                        is_verified=True,
+                    )
+                    db.add(admin_user)
+                    db.commit()
+            else:
+                # Development and testing mode fallback only
+                dev_email = admin_email or "admin@cloudkitchen.com"
+                dev_password = admin_password or "AdminPass123!"
+                admin_user = User(
+                    id=str(uuid.uuid4()),
+                    email=dev_email,
+                    hashed_password=get_password_hash(dev_password),
+                    full_name="Development Administrator",
+                    phone_number="+919999999999",
+                    role=UserRole.ADMIN,
+                    is_active=True,
+                    is_verified=True,
+                )
+                db.add(admin_user)
+                db.commit()
     except Exception:
         db.rollback()
     finally:

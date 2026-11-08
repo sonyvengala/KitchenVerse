@@ -2341,6 +2341,12 @@ def get_analytics(
     # "test_scenario": only test scenario orders (is_test == True or order_number LIKE 'TEST-%')
     is_test_filter = (Order.is_test == True) if scenario == "test_scenario" else (Order.is_test == False)
 
+    if scenario == "test_scenario":
+        latest_test_order = db.query(Order.created_at).filter(is_test_filter).order_by(Order.created_at.desc()).first()
+        if latest_test_order and latest_test_order[0]:
+            test_dt = latest_test_order[0]
+            today = test_dt.date() if hasattr(test_dt, "date") else test_dt
+
     for i in range(6, -1, -1):
         day = today - timedelta(days=i)
         day_start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)

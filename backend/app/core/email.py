@@ -342,7 +342,7 @@ class EmailService:
                 message,
                 hostname=settings.SMTP_HOST,
                 port=settings.SMTP_PORT,
-                username=settings.SMTP_USER or None,
+                username=settings.SMTP_USER,
                 password=settings.smtp_clean_password or settings.SMTP_PASSWORD or None,
                 use_tls=use_direct_tls,
                 start_tls=is_starttls,

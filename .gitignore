@@ -1,4 +1,3 @@
-(venv) PS C:\CloudKitchen> Get-Content .gitignore
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -95,7 +94,6 @@ data/secure_uploads/
 .env.*
 !.env.example
 backend/.env
-(venv) PS C:\CloudKitchen>
 
 ml/artifacts/demand_model.pkl
 

@@ -1,0 +1,66 @@
+services:
+  - type: web
+    name: kitchenverse-backend
+    runtime: python
+    buildCommand: "pip install --upgrade pip && pip install -r backend/requirements.txt && python ml/train_demand_forecast.py --model random_forest && alembic -c backend/alembic.ini upgrade head"
+    startCommand: "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: APP_NAME
+        value: KitchenVerse
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_NAME
+        value: cloudkitchen_session
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: SESSION_COOKIE_HTTPONLY
+        value: "true"
+      - key: SESSION_COOKIE_SAMESITE
+        value: "none"
+      - key: SESSION_MAX_AGE_SECONDS
+        value: "86400"
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kitchenverse-db
+          property: connectionString
+      - key: DATABASE_URL_SYNC
+        fromDatabase:
+          name: kitchenverse-db
+          property: connectionString
+      - key: EMAIL_PROVIDER
+        value: console
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        value: noreply@kitchenverse.com
+      - key: SMTP_FROM_NAME
+        value: "KitchenVerse Support"
+
+databases:
+  - name: kitchenverse-db
+    databaseName: cloudkitchen_db
+    user: cloudkitchen_user
+    plan: free
+

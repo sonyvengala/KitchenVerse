@@ -10,8 +10,9 @@
  * - Token refresh
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined
-  ? import.meta.env.VITE_API_URL
+const rawApiUrl = import.meta.env.VITE_API_URL;
+const API_BASE_URL = (rawApiUrl !== undefined && rawApiUrl !== '')
+  ? String(rawApiUrl).replace(/\/+$/, '')
   : (typeof window !== 'undefined' ? '' : 'http://localhost:8000');
 
 class ApiClientError extends Error {
@@ -265,7 +266,11 @@ class ApiClient {
 
     // Handle 404 - Not found
     if (response.status === 404) {
-      throw new ApiClientError(404, errorMessage || 'Resource not found');
+      const isAuth = response.url.includes('/auth/');
+      const notFoundMessage = isAuth
+        ? 'Authentication service endpoint not found (404). Please ensure the backend server is running and VITE_API_URL is configured.'
+        : 'Resource not found';
+      throw new ApiClientError(404, errorMessage || notFoundMessage);
     }
 
     // Handle 422 - Validation errors

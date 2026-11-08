@@ -22,9 +22,8 @@ sync_url = getattr(settings, "DATABASE_URL_SYNC", None) or os.getenv("DATABASE_U
 if not sync_url:
     raw_url = os.getenv("DATABASE_URL") or str(settings.DATABASE_URL)
     sync_url = str(raw_url).replace("+asyncpg", "").replace("+psycopg", "")
-
-if "localhost:5433" in sync_url or "user:password" in sync_url or "postgres:postgres" in sync_url:
-    sync_url = "postgresql://cloud_kitchen_user:Roso%400404@localhost:5432/cloud_kitchen"
+if sync_url.startswith("postgres://"):
+    sync_url = "postgresql://" + sync_url[len("postgres://"):]
 
 # ConfigParser requires escaping '%' as '%%' for interpolation
 escaped_url = sync_url.replace("%%", "%").replace("%", "%%")

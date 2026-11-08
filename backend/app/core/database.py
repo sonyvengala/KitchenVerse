@@ -8,36 +8,72 @@ from sqlalchemy import create_engine, event, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from backend.app.core.config import settings
 
-# Determine database URL
-database_url = os.getenv("DATABASE_URL", settings.DATABASE_URL)
+# Determine database URL and environment
+def normalize_database_url(url: str) -> str:
+    """
+    Normalize database connection URLs for SQLAlchemy 2.0+ compatibility.
+    Converts legacy 'postgres://' URLs (provided by Render/Heroku) to 'postgresql://'.
+    """
+    if not url:
+        return url
+    trimmed = str(url).strip()
+    if trimmed.startswith("postgres://"):
+        return "postgresql://" + trimmed[len("postgres://"):]
+    return trimmed
 
-# Configure SQLAlchemy engine arguments
-connect_args = {}
-if database_url.startswith("sqlite"):
-    connect_args["check_same_thread"] = False
-elif database_url.startswith("postgresql"):
-    connect_args.setdefault("connect_timeout", 3)
 
-# Create database engine
-try:
-    engine = create_engine(
-        database_url,
-        pool_pre_ping=True,
-        pool_recycle=3600,
-        echo=False,
-        connect_args=connect_args
-    )
-    if not database_url.startswith("sqlite"):
-        with engine.connect() as test_conn:
-            pass
-except Exception:
-    # If PostgreSQL connection string cannot be resolved in standalone local test mode
-    fallback_url = "sqlite:///./cloudkitchen_local.db"
-    engine = create_engine(
-        fallback_url,
-        connect_args={"check_same_thread": False},
-        pool_pre_ping=True
-    )
+def create_app_engine(url: str, is_production: bool = False):
+    """
+    Create SQLAlchemy engine with connection verification.
+    In production (is_production=True), fails immediately with RuntimeError
+    if PostgreSQL connection fails, preventing silent SQLite fallback and data loss.
+    In development, falls back to local SQLite if PostgreSQL is unreachable.
+    """
+    norm_url = normalize_database_url(url)
+    connect_args = {}
+    if norm_url.startswith("sqlite"):
+        connect_args["check_same_thread"] = False
+    elif norm_url.startswith("postgresql"):
+        connect_args.setdefault("connect_timeout", 10)
+
+    try:
+        eng = create_engine(
+            norm_url,
+            pool_pre_ping=True,
+            pool_recycle=3600,
+            echo=False,
+            connect_args=connect_args
+        )
+        if not norm_url.startswith("sqlite"):
+            with eng.connect() as test_conn:
+                pass
+        return eng
+    except Exception as e:
+        if is_production:
+            import logging
+            logging.getLogger("uvicorn.error").critical(
+                f"FATAL: Production database connection failed: {e}. "
+                "Silent fallback to SQLite is disabled in production."
+            )
+            raise RuntimeError(
+                f"Production database connection failed: {e}. "
+                "Silent fallback to SQLite is disabled in production."
+            ) from e
+
+        # Non-production (development / test) fallback only
+        fallback_url = "sqlite:///./cloudkitchen_local.db"
+        return create_engine(
+            fallback_url,
+            connect_args={"check_same_thread": False},
+            pool_pre_ping=True
+        )
+
+
+raw_database_url = os.getenv("DATABASE_URL", settings.DATABASE_URL)
+database_url = normalize_database_url(raw_database_url)
+is_production_env = os.getenv("APP_ENV", str(settings.APP_ENV)).lower() == "production"
+
+engine = create_app_engine(database_url, is_production=is_production_env)
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

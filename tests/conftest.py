@@ -2,12 +2,20 @@
 Global Pytest configuration and fixtures.
 Provides isolated in-memory test database and client fixtures.
 """
+import os
+os.environ.setdefault("SMTP_FROM_EMAIL", "sonyvengala04@gmail.com")
+os.environ.setdefault("EMAIL_FROM", "sonyvengala04@gmail.com")
+
 import pytest
 from typing import Generator
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
+
+from backend.app.core.config import settings
+settings.SMTP_FROM_EMAIL = os.environ.get("SMTP_FROM_EMAIL", "sonyvengala04@gmail.com")
+settings.EMAIL_FROM = os.environ.get("EMAIL_FROM", "sonyvengala04@gmail.com")
 
 from backend.app.core.database import Base, get_db
 from backend.app.main import app

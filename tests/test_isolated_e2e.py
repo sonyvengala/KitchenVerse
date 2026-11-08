@@ -151,7 +151,10 @@ def run_isolated_full_e2e():
                 "kitchen_name": f"Luigi Cloud Trattoria {test_id}",
                 "description": "Authentic woodfired pizzas and handmade pastas",
                 "address": "456 Kitchen Boulevard",
-                "city": "Bengaluru"
+                "city": "Bengaluru",
+                "fssai_license_number": "10019043002844",
+                "fssai_document_data": "data:application/pdf;base64,JVBERi0xLjQgZGVtbyBmc3NhaQ==",
+                "fssai_filename": "luigi_fssai.pdf"
             }
             r_ko_reg = ko_client.post("/api/v1/auth/register-kitchen", json=ko_reg_payload)
             assert r_ko_reg.status_code == 201, f"Kitchen registration failed: {r_ko_reg.status_code} {r_ko_reg.text}"

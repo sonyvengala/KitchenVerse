@@ -66,7 +66,7 @@ class Settings(BaseSettings):
 
     # Email / Notifications
     EMAIL_PROVIDER: str = "console"
-    EMAIL_FROM: str = ""
+    EMAIL_FROM: str = "noreply@kitchenverse.com"
     FRONTEND_URL: str = "http://localhost:3000"
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
