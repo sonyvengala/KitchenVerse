@@ -101,9 +101,17 @@ class WebSocketService {
     this.setStatus(this.reconnectAttempts > 0 ? 'RECONNECTING' : 'CONNECTING');
 
     try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      const wsUrl = `${protocol}//${host}/api/v1/ws?token=${encodeURIComponent(resolvedToken)}`;
+      let wsBase: string;
+      const apiBase = apiClient.getBaseUrl();
+      if (apiBase && (apiBase.startsWith('http://') || apiBase.startsWith('https://'))) {
+        const parsed = new URL(apiBase);
+        const wsProto = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsBase = `${wsProto}//${parsed.host}`;
+      } else {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsBase = `${protocol}//${window.location.host}`;
+      }
+      const wsUrl = `${wsBase}/api/v1/ws?token=${encodeURIComponent(resolvedToken)}`;
 
       this.socket = new WebSocket(wsUrl);
 

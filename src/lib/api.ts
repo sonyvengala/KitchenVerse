@@ -11,9 +11,29 @@
  */
 
 const rawApiUrl = import.meta.env.VITE_API_URL;
-const API_BASE_URL = (rawApiUrl !== undefined && rawApiUrl !== '')
-  ? String(rawApiUrl).replace(/\/+$/, '')
-  : (typeof window !== 'undefined' ? '' : 'http://localhost:8000');
+
+function resolveApiBaseUrl(): string {
+  // 1. Explicitly configured VITE_API_URL
+  if (rawApiUrl !== undefined && rawApiUrl !== '') {
+    return String(rawApiUrl).replace(/\/+$/, '');
+  }
+
+  // 2. In browser runtime
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // Local development - use Vite dev server proxy at /api
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') {
+      return '';
+    }
+    // Remote/Production deployment (e.g. *.vercel.app) without explicit VITE_API_URL
+    return 'https://kitchenverse.onrender.com';
+  }
+
+  // 3. Node/SSR fallback
+  return 'http://localhost:8000';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 class ApiClientError extends Error {
   status: number;
@@ -40,6 +60,13 @@ class ApiClient {
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
     this.loadTokens();
+  }
+
+  /**
+   * Get the current resolved API base URL.
+   */
+  getBaseUrl(): string {
+    return this.baseUrl;
   }
 
   /**
@@ -266,9 +293,9 @@ class ApiClient {
 
     // Handle 404 - Not found
     if (response.status === 404) {
-      const isAuth = response.url.includes('/auth/');
+      const isAuth = response.url.includes('/auth') || response.url.includes('/login');
       const notFoundMessage = isAuth
-        ? 'Authentication service endpoint not found (404). Please ensure the backend server is running and VITE_API_URL is configured.'
+        ? 'Authentication service endpoint not found (404). Please ensure the backend server is running and API URL is configured correctly.'
         : 'Resource not found';
       throw new ApiClientError(404, errorMessage || notFoundMessage);
     }
