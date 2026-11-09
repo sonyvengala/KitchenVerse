@@ -108,8 +108,15 @@ class WebSocketService {
         const wsProto = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
         wsBase = `${wsProto}//${parsed.host}`;
       } else {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        wsBase = `${protocol}//${window.location.host}`;
+        const hostname = window.location.hostname;
+        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0';
+        if (isLocal) {
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          wsBase = `${protocol}//${window.location.host}`;
+        } else {
+          // Vercel HTTP rewrites do not proxy WebSocket upgrades; connect directly to backend WS
+          wsBase = 'wss://kitchenverse.onrender.com';
+        }
       }
       const wsUrl = `${wsBase}/api/v1/ws?token=${encodeURIComponent(resolvedToken)}`;
 

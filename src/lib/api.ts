@@ -12,21 +12,19 @@
 
 const rawApiUrl = import.meta.env.VITE_API_URL;
 
-function resolveApiBaseUrl(): string {
-  // 1. Explicitly configured VITE_API_URL
-  if (rawApiUrl !== undefined && rawApiUrl !== '') {
-    return String(rawApiUrl).replace(/\/+$/, '');
+export function resolveApiBaseUrl(
+  envApiUrl: string | undefined = rawApiUrl,
+  hasWindow: boolean = typeof window !== 'undefined'
+): string {
+  // 1. Preserve intentional explicit VITE_API_URL override
+  if (envApiUrl !== undefined && String(envApiUrl).trim() !== '') {
+    return String(envApiUrl).trim().replace(/\/+$/, '');
   }
 
-  // 2. In browser runtime
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    // Local development - use Vite dev server proxy at /api
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') {
-      return '';
-    }
-    // Remote/Production deployment (e.g. *.vercel.app) without explicit VITE_API_URL
-    return 'https://kitchenverse.onrender.com';
+  // 2. In browser runtime (local Vite dev proxy at /api or Vercel /api/:path* rewrite):
+  // use same-origin ('') so requests avoid CORS preflights and third-party cookie restrictions.
+  if (hasWindow) {
+    return '';
   }
 
   // 3. Node/SSR fallback

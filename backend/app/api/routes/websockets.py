@@ -53,6 +53,18 @@ def _extract_ws_token(websocket: WebSocket) -> Optional[str]:
     return None
 
 
+def _is_ws_origin_allowed(websocket: WebSocket) -> bool:
+    """
+    Validate browser Origin header on WebSocket handshakes to prevent CSWSH.
+    - When Origin is present (sent by all browsers), require an allowed origin.
+    - Non-browser clients omitting Origin still require session authentication below.
+    """
+    origin = websocket.headers.get("origin")
+    if origin is None:
+        return True
+    return settings.is_allowed_origin(origin)
+
+
 @router.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
@@ -62,6 +74,14 @@ async def websocket_endpoint(
     Authenticated WebSocket connection endpoint.
     Maintains heartbeat, routes role-based updates, and handles graceful disconnects.
     """
+    if not _is_ws_origin_allowed(websocket):
+        logger.warning(
+            "WebSocket rejected: Disallowed origin %r",
+            websocket.headers.get("origin"),
+        )
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Origin not allowed")
+        return
+
     token = _extract_ws_token(websocket)
     if not token:
         logger.warning("WebSocket rejected: No authentication token provided.")

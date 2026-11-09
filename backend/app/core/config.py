@@ -3,7 +3,8 @@ Application configuration using Pydantic Settings.
 Loads settings from environment variables or falls back to secure defaults.
 """
 from pathlib import Path
-from typing import List, Union
+import re
+from typing import List, Optional, Union
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -44,13 +45,53 @@ class Settings(BaseSettings):
     SESSION_MAX_AGE_SECONDS: int = 86400  # 24 hours
 
     # CORS
-    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+    CORS_ORIGINS: Union[str, List[str]] = (
+        "http://localhost:5173,http://localhost:3000,"
+        "http://127.0.0.1:5173,http://127.0.0.1:3000,"
+        "https://kitchen-verse-pi.vercel.app"
+    )
+    # Narrowly scoped to KitchenVerse Vercel preview/branch deployments only (never unrestricted *.vercel.app)
+    CORS_ORIGIN_REGEX: str = (
+        r"^https://kitchen-verse(?:-pi)?-(?:git-[a-z0-9-]+-[a-z0-9-]+|[a-z0-9]{8,12}-[a-z0-9-]+)\.vercel\.app$"
+    )
 
     @property
     def cors_origins_list(self) -> List[str]:
         if isinstance(self.CORS_ORIGINS, str):
-            return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
-        return self.CORS_ORIGINS
+            configured = [origin.strip().rstrip("/") for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        else:
+            configured = [str(origin).strip().rstrip("/") for origin in self.CORS_ORIGINS if str(origin).strip()]
+
+        baseline_origins = [
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:3000",
+            "https://kitchen-verse-pi.vercel.app",
+        ]
+        if self.FRONTEND_URL and self.FRONTEND_URL.startswith(("http://", "https://")):
+            baseline_origins.append(self.FRONTEND_URL.strip().rstrip("/"))
+
+        seen = set()
+        merged: List[str] = []
+        for origin in configured + baseline_origins:
+            if origin and origin not in seen:
+                seen.add(origin)
+                merged.append(origin)
+        return merged
+
+    def is_allowed_origin(self, origin: Optional[str]) -> bool:
+        """Return True if origin matches cors_origins_list or CORS_ORIGIN_REGEX."""
+        if not origin:
+            return False
+        candidate = origin.strip()
+        if not candidate or candidate.lower() == "null":
+            return False
+        if candidate in self.cors_origins_list:
+            return True
+        if self.CORS_ORIGIN_REGEX:
+            return bool(re.fullmatch(self.CORS_ORIGIN_REGEX, candidate))
+        return False
 
     # Database
     DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/cloudkitchen_db"
